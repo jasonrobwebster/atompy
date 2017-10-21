@@ -25,18 +25,24 @@ class Atom():
     mass : Number, Symbol
         The mass of the atom.
 
-    isotope : Number, Symbol
+    isotope : Int, Symbol
         The isotope number of the atom.
 
-    protons : Number, Symbol
+    protons : Int, Symbol
         The number of protons within the atom.
 
-    neutrons : Number, Symbol
+    neutrons : Int, Symbol
         The number of neutrons within the atom.
 
-    electrons : Number, Symbol
+    electrons : Int, Symbol
         The number of electrons within the atom.
     """
+
+    #-------------------------------------------------------------------------
+    # Variables
+    #-------------------------------------------------------------------------
+
+    _atomic_labels = set()
 
     #-------------------------------------------------------------------------
     # Properties
@@ -83,9 +89,14 @@ class Atom():
         return self.kwargs.get('electrons')
 
     @property
-    def states(self):
-        """The atomic states."""
-        return self.states
+    def levels(self):
+        """The number of atomic levels."""
+        return self._levels
+
+    @property
+    def state(self):
+        """The atomic density matrix."""
+        return self._state
 
     #-------------------------------------------------------------------------
     # Class Methods
@@ -117,6 +128,8 @@ class Atom():
 
         self.args = args
         self.kwargs = kwargs
+        self._levels = 0
+        self._state = 0
 
     def __repr__(self):
         if self.name != '':
@@ -145,5 +158,51 @@ class Atom():
             # join everything
             out = ''.join(out)
             return out
-
+        else:
+            out = 'Atom({0}={1}, {2}={3}, {4}={5})'.format(
+                'levels', self.levels,
+                'spin', self.spin,
+                'mu', self.mu
+            )
+            return out
     
+    #-------------------------------------------------------------------------
+    # Operations
+    #-------------------------------------------------------------------------
+
+    def add_level(self, **kwargs):
+        """Add an atomic energy level to the atom.
+
+        Parameters
+        ==========
+
+        E : Number, Symbol
+            The atomic energy level.
+
+        n : Int, Symbol
+            The atomic energy level number, or principle number.
+
+        j : Number, Symbol
+            The atomic level's total angular momentum.
+
+        m : Number, Symbol
+            The atomic level's eigenstate of the Jz operator.
+
+        mode : String (Optional)
+            Whether the level represents a L, J, F, etc mode.
+        
+        Examples
+        ========
+        #TODO: make examples
+        """
+
+        if not len(kwargs) >= 4:
+            raise ValueError('There should be at least 4 arguments.')
+        if len(kwargs) > 5:
+            raise ValueError('Too many arguments.')
+        
+        E = kwargs.pop('E')
+        n = kwargs.pop('n')
+        j = kwargs.pop('j')
+        m = kwargs.pop('m')
+        mode = kwargs.get('mode', 'J')

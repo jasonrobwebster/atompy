@@ -5,6 +5,5 @@ SymPy package.
 
 from __future__ import print_function
 
+from sympy import init_printing
 from .core import *
-
-init_printing()
