@@ -1,28 +1,32 @@
-"""Atomic energy level class handler"""
+"""Atomic energy level class handler.
+
+Extends the spin class in sympy by expanding the Hilbert space of our atomic
+energy levels to incorporate the principle number.
+
+Based off Sympy 1.1.1.
+"""
+
+# TODO: Make a functioning multilevel system.
+# Should be a copy-paste job from the sympy spin class.
+# There must be a smarter way of doing this since all
+# I'm adding is the n principle number to the state.
+# This is tedious and not needed for my applications,
+# but is necessary when taking into account transitions
+# between multiple energy levels (e.g. ^1S_1/2 -> ^2S_1/2).
+# Would also be nice to have a good way to represent the 
+# associated basis (|n,j,m>) with their associated operators.
 
 from __future__ import print_function
 
 from . import (
-    Add, Sum,
-    Ket, Bra, Rotation,
-    sympify, symbols, 
-    SpinState, State,
-    JxKet, JyKet, JzKet,
-    JxBra, JyBra, JzBra, 
-    Jx, Jy, Jz,
-    ComplexSpace
+    Add, Integer, Mul, Sum, Rational, S, symbols, sympify,
+    Bra, Ket, State, KroneckerDelta, hbar, ComplexSpace,
+    Operator, m_values, Rotation, WignerD, SpinState, 
+    TensorProduct, qapply
 )
 
-__all__ = [
-    'LevelJxKet',
-    'LevelJxBra',
-    'LevelJyKet',
-    'LevelJyBra',
-    'LevelJzKet',
-    'LevelJzBra'
-]
 
-class LevelState(SpinState):
+class LevelState(State):
     """Base class for atomic level states."""
 
     #-------------------------------------------------------------------------
@@ -142,7 +146,7 @@ class LevelState(SpinState):
                 lt = Rotation.D(j, mi, self.m, *angles)
                 return Sum(lt * state, (mi, -j, j))
 
-class LevelJxKet(LevelState, JxKet):
+class LevelJxKet(LevelState, Ket):
     """
     A Ket defining an atomic energy level.
     """
@@ -151,7 +155,7 @@ class LevelJxKet(LevelState, JxKet):
     def dual_class(cls):
         return LevelJxBra
 
-class LevelJxBra(LevelState, JxBra):
+class LevelJxBra(LevelState, Bra):
     """
     A Bra defining an atomic energy level.
     """
@@ -160,7 +164,7 @@ class LevelJxBra(LevelState, JxBra):
     def dual_class(cls):
         return LevelJxKet
 
-class LevelJyKet(LevelState, JyKet):
+class LevelJyKet(LevelState, Ket):
     """
     A Ket defining an atomic energy level.
     """
@@ -169,7 +173,7 @@ class LevelJyKet(LevelState, JyKet):
     def dual_class(cls):
         return LevelJyBra
 
-class LevelJyBra(LevelState, JyBra):
+class LevelJyBra(LevelState, Bra):
     """
     A Bra defining an atomic energy level.
     """
@@ -178,7 +182,7 @@ class LevelJyBra(LevelState, JyBra):
     def dual_class(cls):
         return LevelJyKet
 
-class LevelJzKet(LevelState, JzKet):
+class LevelJzKet(LevelState, Ket):
     """
     A Ket defining an atomic energy level.
     """
@@ -187,7 +191,7 @@ class LevelJzKet(LevelState, JzKet):
     def dual_class(cls):
         return LevelJzBra
 
-class LevelJzBra(LevelState, JzBra):
+class LevelJzBra(LevelState, Bra):
     """
     A Bra defining an atomic energy level.
     """
