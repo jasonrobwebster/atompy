@@ -2,11 +2,44 @@
 
 from __future__ import print_function
 
-from . import sympify
+from . import sympify, JzKet, JzBra
 
 __all__ = [
     'Atom'
 ]
+
+# TODO: Add multilevel support.
+# See .multilevel
+
+class Level():
+    """Define's an atomic level.
+
+    Does not define a complete symbolic level as in sympy.
+
+    Parameters
+    ==========
+
+    E : Number, Symbol
+        Energy of the state.
+
+    n : Int, Symbol
+        Level of the state.
+
+    s : Number, Symbol
+        The electron spin of the level.
+
+    l : Int, Symbol
+        The AM of the level.
+
+    j : Number, Symbol
+        The total AM of the level.
+
+    m : Number, Symbol
+        The Jz eigenvalue of the state.
+    """
+
+    def __init__(self, **kwargs):
+        
 
 class Atom():
     """Define a new atom.
@@ -101,6 +134,11 @@ class Atom():
         """The atomic density matrix."""
         return self._state
 
+    @property 
+    def hamiltonian(self):
+        """The hamiltonian for the atom."""
+        return self._hamiltonian
+
     #-------------------------------------------------------------------------
     # Class Methods
     #-------------------------------------------------------------------------
@@ -131,8 +169,10 @@ class Atom():
 
         self.args = args
         self.kwargs = kwargs
+        self._levels_list = [] # a list of the added levels
         self._levels = 0
         self._state = 0
+        self._hamiltonian = 0
 
     def __repr__(self):
         if self.name != '':
@@ -185,27 +225,59 @@ class Atom():
         n : Int, Symbol
             The atomic energy level number, or principle number.
 
+        s: Number, Symbol
+            The total electron spin of the atomic level.
+
+        l : Int, String, Symbol
+            The atomic level's L total angular momentum.
+            Accepts an integer or an atomic label ('S', 'P', etc).
+
         j : Number, Symbol
-            The atomic level's total angular momentum.
+            The atomic level's J total angular momentum.
 
         m : Number, Symbol
             The atomic level's eigenstate of the Jz operator.
-
-        mode : String (Optional)
-            Whether the level represents a L, J, F, etc mode.
         
         Examples
         ========
         #TODO: make examples
         """
 
-        if not len(kwargs) >= 4:
-            raise ValueError('There should be at least 4 arguments.')
-        if len(kwargs) > 5:
-            raise ValueError('Too many arguments.')
+        if not len(kwargs) >= 6:
+            raise ValueError('There should be at least 6 arguments, got: %s' % len(kwargs))
         
-        E = kwargs.pop('E')
-        n = kwargs.pop('n')
-        j = kwargs.pop('j')
-        m = kwargs.pop('m')
-        mode = kwargs.get('mode', 'J')
+        E = sympify(kwargs.pop('E'))
+        n = sympify(kwargs.pop('n'))
+        s = sympify(kwargs.pop('s'))
+        l = sympify(kwargs.pop('l'))
+        j = sympify(kwargs.pop('j'))
+        m = sympify(kwargs.pop('m'))
+
+        # convert l to a atomic label and error check it
+        l_labels = ['S', 'P', 'D', 'F']
+        if str(l) in l_labels:
+            l = sympify(l_labels.index(str(l)))
+        elif ord(str(l)) <= ord('Z') and ord(str(l)) > ord('F'):
+            l = sympify(ord(str(l)))
+        else:
+            if l.is_number:
+                if (l) != int(l):
+                    raise ValueError('l should be a label or integer got: %s' % l)
+                if l in l_labels:
+                    l_label = l_labels.index(l)
+                else:
+                    l_label = chr(ord('F') + l-4)
+            else:
+                raise ValueError('l should be a label, integer, or half integer, got: %s' % l)
+
+        # label to add to atomic labels
+        label = str(n) + l_label + '_' + str(j)
+        if label not in self._atomic_labels:
+            self._atomic_labels.add(label)
+        else:
+            raise ValueError('The level you are adding already exists in this atom: %s' % label)
+
+        # define the hamiltonian
+        level_op = JzKet(j, m) * JzBra(j, m)
+        self._hamiltonian += E * level_op
+        self._levels += 1
