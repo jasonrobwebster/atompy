@@ -2,8 +2,11 @@
 
 from __future__ import print_function
 
-#from .atombase import AtomBase
 from . import sympify
+
+__all__ = [
+    'Atom'
+]
 
 class Atom():
     """Define a new atom.
