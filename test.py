@@ -1,18 +1,11 @@
 import atompy as ap
+import atompy.multilevel.spin as a
+from sympy.physics.quantum.spin import JzKet, Jx
+from sympy.physics.quantum import represent
 
-n, j, m = ap.symbols('n, j, m')
-l_ket = ap.LevelJzKet(10, 1, 0)
-j_ket = ap.JzKet(1,0)
-n_ket = ap.Ket(1)
+t = a.AtomJzKet(3,1,2,1,0)
+j = JzKet(1, 0)
 
-ap.init_printing()
-
-test = l_ket.rewrite('Jx')
-print(test)
-
-test1 = ap.qapply(ap.Jz * l_ket)
-test2 = ap.qapply(ap.Jz * j_ket)
-print(test1, test2)
-
-test3 = j_ket.dual * l_ket
-ap.pprint(ap.represent(ap.Jz, basis=ap.Jz))
+print(t)
+ap.pprint(t.rewrite('Jx'))
+ap.pprint(represent(a.AtomJx, basis=a.AtomJz))
