@@ -27,6 +27,24 @@ from sympy.physics.quantum.tensorproduct import TensorProduct
 from sympy.physics.quantum.cg import CG
 from sympy.physics.quantum.qapply import qapply
 
+__all__ = [
+    'm_values',
+    'Jx',
+    'Jy',
+    'Jz',
+    'J2',
+    'Jplus',
+    'Jminus',
+    'L2',
+    'S2',
+    'JxKet',
+    'JyKet',
+    'JzKet',
+    'JxBra',
+    'JyBra',
+    'JzBra'
+]
+
 def m_values(j):
     j = sympify(j)
     size = 2*j + 1
@@ -908,7 +926,7 @@ AtomS2 = AtomS2Op('S')
 class AtomSpinState(State):
     """Base class for angular momentum states."""
 
-    _label_separator = ','
+    _label_separator = ', '
 
     def __new__(cls, n, s, l, j, m):
         n = sympify(n)
@@ -1224,9 +1242,7 @@ class AtomJyBra(AtomSpinState, Bra):
 class AtomJzKet(AtomSpinState, Ket):
     """Eigenket of AtomJz.
 
-    Spin state which is an eigenstate of the AtomJz operator. Uncoupled states,
-    that is states representing the interaction of multiple separate spin
-    states, are defined as a tensor product of states.
+    Spin state which is an eigenstate of the AtomJz operator. Does not couple.
 
     Parameters
     ==========
@@ -1290,3 +1306,26 @@ class AtomJzBra(AtomSpinState, Bra):
     @classmethod
     def dual_class(self):
         return AtomJzKet
+
+
+#-----------------------------------------------------------------------------
+# Aliases
+#-----------------------------------------------------------------------------
+
+
+Jx = AtomJx
+Jy = AtomJy
+Jz = AtomJz
+J2 = AtomJ2
+Jplus = AtomJplus
+Jminus = AtomJminus
+
+L2 = AtomL2
+S2 = AtomS2
+
+JxKet = AtomJxKet
+JyKet = AtomJyKet
+JzKet = AtomJzKet
+JxBra = AtomJxBra
+JyBra = AtomJyBra
+JzBra = AtomJzBra

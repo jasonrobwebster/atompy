@@ -3,6 +3,7 @@
 from __future__ import print_function
 
 from . import sympify, KetBase
+from ..multilevel.spin import JzKet
 
 __all__ = [
     'Atom'
@@ -21,25 +22,21 @@ class Level():
     Does not define a complete symbolic level as in sympy.
     Only useful within the context of the Atom class."""
 
-    def __init__(self, E, n, s, l, j, m, label, atomic_label):
+    def __init__(self, E, level_ket, label, atomic_label):
         # We're assuming that all error handling
         # has been done outside this class.
         self.E = E
-        self.n = n
-        self.s = s
-        self.l = l
-        self.j = j
-        self.m = m
+        self.level_ket = level_ket
         self.label = label
         self.atomic_label = atomic_label
 
     def print(self, sep='\t'):
-        out = '{0}' + sep + '{1}' + sep + '{2}' + sep + '|{3},{4},{5},{6},{7}>'
+        out = '{0}' + sep + '{1}' + sep + '{2}' + sep + str({3})
         out = out.format(
             self.label,
             self.atomic_label,
             self.E,
-            self.n, self.s, self.l, self.j, self.m
+            self.level_ket
         )
         
 #-----------------------------------------------------------------------------
@@ -228,7 +225,8 @@ class Atom():
     #-------------------------------------------------------------------------
 
     def add_level(self, E, n, s, l, j, m_j, label=None):
-        """Add an atomic energy level to the atom.
+        """Add an atomic energy level to the atom. Returns the atomic level
+        ket.
 
         Parameters
         ==========
@@ -266,41 +264,37 @@ class Atom():
         E = sympify(E)
         n = sympify(n)
         s = sympify(s)
-        l = sympify(l)
+        #l = l
         j = sympify(j)
         m = sympify(m_j)
 
-        # convert l to a atomic label and error check it
+        # convert l to an atomic label and error check it
         l_labels = ['S', 'P', 'D', 'F']
-        if l.is_number:
-            if l < 0:
-                raise ValueError('l should be >= 0, got: %s' % l)
-            if (l) != int(l):
-                    raise ValueError('l should be an atomic label or integer got: %s' % l)
-            if l <= 3:
-                l_label = l_labels[int(l)]
-            else:
-                chr(ord('F') + l - 4)
-        else:
+        if isinstance(l, str):
             if str(l) in l_labels:
-                l = sympify(l_labels.index(str(l)))
-            elif ord(str(l)) <= ord('Z') and ord(str(l)) > ord('F'):
-                l = sympify(ord(str(l)))
+                l = sympify(l_labels.index(l))
+            elif ord(l) <= ord('Z') and ord(l) > ord('F') and len(l) == 1:
+                l = sympify(ord(l))
             else:
-                if l.is_number:
-                    
-                    if l in l_labels:
-                        l_label = l_labels.index(l)
-                    else:
-                        l_label = chr(ord('F') + l-4)
-                else:
-                    raise ValueError('l should be a label, integer, or half integer, got: %s' % l)
+                raise ValueError('l should be a label, integer, or half integer, got: %s' % l)
+        else:
+            l = sympify(l)
+        
+        # make the level ket, also error checks
+        level_ket = JzKet(n, s, l, j, m_j)
 
-        # label to add to atomic labels
-        # This differes from the user defined label
+        # get the label necessary for the atomic label
+        if l.is_Number:
+            if l < 4:
+                l_label = l_labels[l]
+            elif l >= 4:
+                l_label = chr(ord('F') + l - 4)
+        
+        # The atomic label
+        # This differes from the user defined label,
         # which is used to make the notation of the density
         # matrix more convenient
-        atomic_label = str(n) + l_label + '_' + str(j)
+        atomic_label = str(n) + l_label + '_' + str(j) + '(m_j=' + str(m_j) + ')'
         if atomic_label not in self._atomic_labels:
             self._atomic_labels.add(atomic_label)
         else:
@@ -322,11 +316,10 @@ class Atom():
                 )
 
         # define the hamiltonian
-        level_ket = Ket(n, s, l, j, m_j)
         level_op = level_ket * level_ket.dual
         self._hamiltonian += E * level_op
 
         # add to the level
-        new_level = Level(E, n, s, l, j, m_j, label, atomic_label)
+        new_level = Level(E, level_ket, label, atomic_label)
         self._levels_list.append(new_level)
         self._levels += 1

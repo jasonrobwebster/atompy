@@ -1,11 +1,32 @@
 import atompy as ap
-import atompy.multilevel.spin as a
-from sympy.physics.quantum.spin import JzKet, Jx
-from sympy.physics.quantum import represent
 
-t = a.AtomJzKet(3,1,2,1,0)
-j = JzKet(1, 0)
+rb = ap.Atom(
+    #name='Rb',
+    spin=0,
+    mu=0,
+    mass='m'
+)
 
-print(t)
-ap.pprint(t.rewrite('Jx'))
-ap.pprint(represent(a.AtomJx, basis=a.AtomJz))
+print(rb)
+
+rb.add_level(
+    E = 'E_0',
+    n = 1,
+    s = ap.S(1)/2,
+    l = 'S',
+    j = ap.S(1)/2,
+    m_j = ap.S(1)/2
+)
+
+rb.add_level(
+    E = 'E_1',
+    n = 1,
+    s = ap.S(1)/2,
+    l = 'S',
+    j = ap.S(1)/2,
+    m_j = -ap.S(1)/2
+)
+
+print(rb)
+
+ap.pprint(rb.hamiltonian)
