@@ -1255,7 +1255,7 @@ class AtomJzKet(AtomSpinState, Ket):
 
     l : Number, Symbol
         Total orbital angular momentum
-    
+
     j : Number, Symbol
         Total coupled angular momentum
 
@@ -1265,7 +1265,7 @@ class AtomJzKet(AtomSpinState, Ket):
     Examples
     ========
 
-    
+
 
     See Also
     ========

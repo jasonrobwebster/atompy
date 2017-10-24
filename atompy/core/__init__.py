@@ -11,6 +11,7 @@ from sympy.physics.quantum.cg import *
 from sympy.physics.quantum.spin import *
 from sympy.physics.quantum.spin import SpinState
 from sympy.physics.quantum.hilbert import *
+from sympy.physics.units import speed_of_light, e0, u0
 
 # import self
 from .atom import *
