@@ -54,14 +54,21 @@ def transition_strength(g_state, e_state, tensor, spin=None, decouple=True):
 
     g_ket = g_state.level_ket
     e_ket = e_state.level_ket
+    Fg = g_ket.f
+    Fe = e_ket.f
     Jg = g_ket.j
     Je = e_ket.j
     Lg = g_ket.l
     Le = e_ket.l
     Sg = g_ket.s
     Se = e_ket.s
-    m_Jg = g_ket.m
-    m_Je = e_ket.m
+    m_g = g_ket.m
+    m_e = e_ket.m
+    i_g = g_ket.i
+    i_e = e_ket.i
+
+    assert i_g == i_e
+    I = i_g
 
     E_diff = e_state.E - g_state.E
     k = tensor.k
@@ -70,14 +77,18 @@ def transition_strength(g_state, e_state, tensor, spin=None, decouple=True):
     # label the gamma symbol
     label_g = g_state.label
     label_e = e_state.label
-    gamma = 'gamma' + label_g  + label_e
+    gamma = 'Gamma' + label_g  + label_e
     gamma = sympify(gamma)
 
     # Give the result
-    result = (-1)**(Je-Jg+m_Jg-m_Je) * sqrt((2*Jg+1) / (2*Je+1))
-    result *= clebsch_gordan(Jg, k, Je, m_Jg, -q, m_Je)
-    dbl_bar = DoubleBar(Jg, Je, E_diff, gamma)
+    result = (-1)**(Fe-Fg+m_g-m_e) * sqrt((2*Fg+1) / (2*Fe+1))
+    result *= clebsch_gordan(Fg, k, Fe, m_g, -q, m_e)
+    dbl_bar = DoubleBar(Fg, Fe, E_diff, gamma)
     if decouple:
+        # decouple to <J||..||J'>
+        result *= (-1)**(Fe+Jg+1+I) * sqrt((2*Fe+1)*(2*Jg+1))
+        result *= wigner_6j(Jg, Je, 1, Fe, Fg, I)
+        # decouple to <L||..||L'>
         result *= (-1)**(Je+Lg+1+Sg) * sqrt((2*Je+1)*(2*Lg+1))
         result *= wigner_6j(Lg, Le, 1, Je, Jg, Sg)
         dbl_bar = DoubleBar(Lg, Le, E_diff, gamma)

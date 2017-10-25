@@ -4,10 +4,11 @@ from __future__ import print_function
 
 from sympy.core.compatibility import range
 from sympy.matrices import zeros
-from . import sympify, Abs, sqrt, S, clebsch_gordan, wigner_6j
+from . import sympify, Abs, sqrt, S, clebsch_gordan, wigner_6j, m_values
 from .tensor import SphericalTensor
 from .doublebar import DoubleBar
-from atompy.multilevel import JzKet, m_values
+from atompy.multilevel import AtomicJzKet
+
 
 __all__ = [
     'AtomicState',
@@ -62,8 +63,8 @@ def f_values(J, I):
     """Calculates how many F values exist between F=Abs(J-I) to F=J+I"""
     f_min = Abs(J-I)
     f_max = J + I
-    f_diff = F_max - F_min
-    size = 2*F_diff + 1
+    f_diff = f_max - f_min
+    size = 2*f_diff + 1
     if not size.is_Integer or size < 0:
         raise ValueError('size should be an integer, got J, I, size: %s, %s, %s' % (J, I, size))
     return size, [f for f in range(f_min, f_max + 1)]
@@ -254,14 +255,15 @@ class Atom():
     # Operations
     #-------------------------------------------------------------------------
 
-    def add_level(self, E, n, s, l, j, m_j, label=None):
+    def add_level(self, **kwargs):
         """Add an atomic energy level to the atom. 
         Returns an AtomicLevel class representing the state.
+        All parameters are passed as keyword arguments.
 
         Parameters
         ==========
 
-        E : Number, Symbol
+        energy : Number, Symbol
             The atomic energy level.
 
         n : Int, Symbol
@@ -276,9 +278,16 @@ class Atom():
 
         j : Number, Symbol
             The atomic level's J total angular momentum.
+            If the spin of the atom is non zero, this becomes a coupling
+            paramter for l and s.
 
-        m_j : Number, Symbol
-            The atomic level's eigenstate of the Jz operator.
+        f : Number, Symbol
+            The atomic level's F total angular momentum.
+            This argument is not required if the atomic spin is zero.
+
+        m : Number, Symbol
+            The atomic level's eigenstate of the Jz operator. If the atomic
+            spin is non zero, this is the eigenstate of the Fz operator.
 
         label: String, Optional
             The unique label for the state.
@@ -291,12 +300,15 @@ class Atom():
         # TODO: Make examples
 
         # TODO: Create automatic labels for 'E'
-        E = sympify(E)
-        n = sympify(n)
-        s = sympify(s)
-        #l = l
-        j = sympify(j)
-        m_j = sympify(m_j)
+        E = sympify(kwargs['energy'])
+        n = sympify(kwargs['n'])
+        s = sympify(kwargs['s'])
+        l = kwargs['l']
+        j = sympify(kwargs['j'])
+        m = sympify(kwargs['m'])
+        label = kwargs.get('label')
+        if self.spin != 0:
+            f = sympify(kwargs['f'])
 
         if E.is_Number:
             if not E.is_real:
@@ -314,8 +326,17 @@ class Atom():
         else:
             l = sympify(l)
 
-        # make the level ket, also error checks
-        level_ket = JzKet(n, s, l, j, m_j)
+        # make the level ket, also  performs error checking
+        i = self.spin
+        if i == 0:
+            level_ket = AtomicJzKet(n, j, m, (s, l))
+        else:
+            if f.is_number and j.is_number and i.is_number:
+                if abs(j-i) > f or abs(j+i) < f:
+                    raise ValueError(
+                        'f must be in the bounds |j-i|<=f<=|j+i|, got j, i, f: %s, %s, %s' % (j, i, f)
+                    )
+            level_ket = AtomicJzKet(n, f, m, (s, l, i), [(1, 2, j), (1, 3, f)])
 
         # get the label necessary for the atomic label
         if l.is_Number:
@@ -328,7 +349,10 @@ class Atom():
         # This differes from the user defined label,
         # which is used to make the notation of the density
         # matrix more convenient
-        atomic_label = str(n) + l_label + '_' + str(j) + '(m_j=' + str(m_j) + ')'
+        if i == 0:
+            atomic_label = str(n) + l_label + '_' + str(j) + '(m_j=' + str(m) + ')'
+        else:
+            atomic_label = str(n) + l_label + '_' + str(j) + '(F=' + str(f) + ',m_f=' + str(m) + ')'
         if atomic_label not in self._atomic_labels:
             self._atomic_labels.add(atomic_label)
         else:
