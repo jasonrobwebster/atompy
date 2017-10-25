@@ -11,8 +11,8 @@ This is better for an atomic state for multiple reasons:
 from __future__ import print_function, division
 
 from sympy.physics.quantum.spin import (
-    CoupledSpinState, Ket, Bra, State, _build_coupled, Jx, Jy, Jz,
-    Rotation, uncouple, JxKet, JyKet, JzKet, JxBra, JyBra, JzBra
+    _build_coupled, Bra, CoupledSpinState, hbar, J2Op, Jx, JxBra, JxKet,
+    Jy, JyBra, JyKet, Jz, JzBra, JzKet, JzOp, Ket, Rotation, State, uncouple
 )
 
 from sympy.core.compatibility import range
@@ -22,10 +22,101 @@ from sympy.functions.special.tensor_functions import KroneckerDelta
 from sympy.printing.pretty.stringpict import prettyForm, stringPict
 from sympy.printing.pretty.pretty_symbology import pretty_symbol
 
+__all__ = [
+    'S2',
+    'L2',
+    'J2',
+    'F2',
+    'Fz',
+    'AtomicJxBra',
+    'AtomicJyBra',
+    'AtomicJzBra',
+    'AtomicJxKet',
+    'AtomicJyKet',
+    'AtomicJzKet'
+]
+
+
+#-----------------------------------------------------------------------------
+# Extended J2 Operators
+#-----------------------------------------------------------------------------
+
+
+# TODO: Extend all of the old operators.
+# Intergrate the old operators with the new style.
+
+class S2Op(J2Op):
+    """The S^2 Operator."""
+
+    def _apply_operator_AtomJxKetCoupled(self, ket, **options):
+        s = ket.s
+        return hbar**2*s*(s + 1)*ket
+
+    def _apply_operator_AtomJyKetCoupled(self, ket, **options):
+        s = ket.s
+        return hbar**2*s*(s + 1)*ket
+
+    def _apply_operator_AtomJzKetCoupled(self, ket, **options):
+        s = ket.s
+        return hbar**2*s*(s + 1)*ket
+
+class J2Op_Ext(J2Op):
+    """The extended J^2 Operator."""
+
+    def _apply_operator_AtomJxKetCoupled(self, ket, **options):
+        j = ket.j
+        return hbar**2*j*(j + 1)*ket
+
+    def _apply_operator_AtomJxKetCoupled(self, ket, **options):
+        j = ket.j
+        return hbar**2*j*(j + 1)*ket
+
+    def _apply_operator_AtomJxKetCoupled(self, ket, **options):
+        j = ket.j
+        return hbar**2*j*(j + 1)*ket
+
+class L2Op(J2Op):
+    """The F^2 Operator."""
+
+    def _apply_operator_AtomJxKetCoupled(self, ket, **options):
+        l = ket.l
+        return hbar**2*l*(l + 1)*ket
+
+    def _apply_operator_AtomJyKetCoupled(self, ket, **options):
+        l = ket.l
+        return hbar**2*l*(l + 1)*ket
+
+    def _apply_operator_AtomJzKetCoupled(self, ket, **options):
+        l = ket.l
+        return hbar**2*l*(l + 1)*ket
+
+class F2Op(J2Op):
+    """The F^2 Operator."""
+
+    def _apply_operator_AtomJxKetCoupled(self, ket, **options):
+        f = ket.f
+        return hbar**2*f*(f + 1)*ket
+
+    def _apply_operator_AtomJyKetCoupled(self, ket, **options):
+        f = ket.f
+        return hbar**2*f*(f + 1)*ket
+
+    def _apply_operator_AtomJzKetCoupled(self, ket, **options):
+        f = ket.f
+        return hbar**2*f*(f + 1)*ket
+
+
+S2 = S2Op('S')
+L2 = L2Op('L')
+J2 = J2Op_Ext('J')
+F2 = F2Op('F')
+Fz = JzOp('F')
+
 
 #-----------------------------------------------------------------------------
 # Uncoupled Classes
 #-----------------------------------------------------------------------------
+
 
 # Hacky fix for uncoupled classes
 # TODO: Add proper functionality to uncoupled classes
@@ -37,6 +128,7 @@ AtomJxKet = JxKet
 AtomJyKet = JyKet
 AtomJzKet = JzKet
 
+
 #-----------------------------------------------------------------------------
 # Coupled Base Class
 #-----------------------------------------------------------------------------
@@ -45,15 +137,15 @@ AtomJzKet = JzKet
 class AtomSpinState(CoupledSpinState):
     """Base class for atomic spin states."""
 
-    def __new__(cls, n, j, m, jn):
-        # jn is now defined as 
-        # jn[0] = S 
+    def __new__(cls, n, j, m, jn, *jcoupling):
+        # jn is now defined as
+        # jn[0] = S
         # jn[1] = L (in which case j = J)
         # jn[2] = I (in which case j = F)
 
         # check j, m, jn with CoupledSpinState
-        CoupledSpinState(j,m,jn)
-        
+        state = CoupledSpinState(j, m, jn) if len(jcoupling) == 0 else CoupledSpinState(j, m, jn, *jcoupling)
+
         # check length of jn, don't need more than three
         if len(jn) > 3:
             raise ValueError('Length of jn is too long for atomic state, got: %s' % jn)
@@ -61,26 +153,29 @@ class AtomSpinState(CoupledSpinState):
         n = sympify(n)
         j = sympify(j)
         m = sympify(m)
-        jn = Tuple( *[sympify(ji) for ji in jn])    
+        jn = state.jn
+        jcoupling = state.coupling
         l = jn[1] # the l quantum number
+
+        del state
 
         if n.is_number:
             if n != int(n):
                 raise ValueError('n must be an integer, got: %s' % n)
             if n < 1:
                 raise ValueError('n must be >= 1, got: %s' % n)
-        
+
         if l.is_number:
             if l != int(l):
                 raise ValueError('l must be an integer, got: %s' % l)
             if l < 0:
                 raise ValueError('l must be >= 0, got: %s' % n)
-        
+
         if n.is_number and l.is_number:
             if l >= n:
                 raise ValueError('l must be <= n, got n, l: %s, %s' % (n, l))
 
-        return State.__new__(cls, n, j, m, jn)
+        return State.__new__(cls, n, j, m, jn, jcoupling)
 
     @classmethod
     def _eval_hilbert_space(cls, label):
@@ -88,7 +183,7 @@ class AtomSpinState(CoupledSpinState):
         if j.is_number:
             return DirectSumHilbertSpace(*[ ComplexSpace(x) for x in range(int(2*j + 1), 0, -2) ])
         else:
-            # TODO: Need hilbert space fix, see issue 5732
+            # TODO: Need hilbert space fix, see SymPy issue 5732
             # Desired behavior:
             #ji = symbols('ji')
             #ret = Sum(ComplexSpace(2*ji + 1), (ji, 0, j))
@@ -105,6 +200,12 @@ class AtomSpinState(CoupledSpinState):
 
     @property
     def j(self):
+        if self.i == 0:
+            return self.label[1]
+        return self.label[4][0][2]
+
+    @property
+    def f(self):
         return self.label[1]
 
     @property
@@ -121,33 +222,25 @@ class AtomSpinState(CoupledSpinState):
 
     @property
     def l(self):
-        if len(self.jn) >= 2:
-            return self.jn[1]
-        else:
-            return 0
+        return self.jn[1]
 
     @property
     def i(self):
         if len(self.jn) >= 3:
             return self.jn[2]
-        else:
-            return 0
-
-    # TODO: Redefine a proper coupling, coupled_jn and coupled_n property.
-    # For now just overwrite the defaults with placeholders
-    # Includes adding this functionality to the printing process
+        return 0
 
     @property
     def coupling(self):
-        return None
+        return self.label[4]
 
     @property
     def coupled_jn(self):
-        return None
+        return _build_coupled(self.label[4], len(self.label[3]))[1]
 
     @property
     def coupled_n(self):
-        return None
+        return _build_coupled(self.label[4], len(self.label[3]))[0]
 
     #-------------------------------------------------------------------------
     # Printing
@@ -192,17 +285,17 @@ class AtomSpinState(CoupledSpinState):
         label = [self.n, self.j, self.m]
         for i, ji in enumerate(self.jn):
             if i == 0:
-                label.append('S=%s' % (i, printer._print(ji)) )
+                label.append('S=%s' % printer._print(ji) )
             if i == 1:
-                label.append('L=%s' % (i, printer._print(ji)) )
+                label.append('L=%s' % printer._print(ji) )
             if i == 2:
-                label.append('I=%s' % (i, printer._print(ji)) )
+                label.append('I=%s' % printer._print(ji) )
         return self._print_sequence(label, self._label_separator, printer, *args)
 
     #-------------------------------------------------------------------------
     # _eval_rewrites
     #-------------------------------------------------------------------------
-    
+
     def _eval_rewrite_as_Jx(self, *args, **options):
         if isinstance(self, Bra):
             return self._rewrite_basis(Jx, AtomJxBraCoupled, **options)
@@ -341,8 +434,8 @@ class AtomJxKetCoupled(AtomSpinState, Ket):
         return self._represent_coupled_base(alpha=3*pi/2, **options)
 
     def _represent_JzOp(self, basis, **options):
-        return self._represent_coupled_base(beta=pi/2, **options)            
-        
+        return self._represent_coupled_base(beta=pi/2, **options)
+
 class AtomJxBraCoupled(AtomSpinState, Bra):
     """Coupled eigenbra of Jx.
 
@@ -452,3 +545,17 @@ class AtomJzBraCoupled(AtomSpinState, Bra):
     @classmethod
     def uncoupled_class(self):
         return AtomJzBra
+
+
+#-----------------------------------------------------------------------------
+# Aliases
+#-----------------------------------------------------------------------------
+
+
+AtomicJxKet = AtomJxKetCoupled
+AtomicJyKet = AtomJyKetCoupled
+AtomicJzKet = AtomJzKetCoupled
+
+AtomicJxBra = AtomJxBraCoupled
+AtomicJyBra = AtomJyBraCoupled
+AtomicJzBra = AtomJzBraCoupled
