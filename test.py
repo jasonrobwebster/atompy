@@ -1,18 +1,34 @@
 import atompy as ap
 
-n, j, m = ap.symbols('n, j, m')
-l_ket = ap.LevelJzKet(10, 1, 0)
-j_ket = ap.JzKet(1,0)
-n_ket = ap.Ket(1)
+rb = ap.Atom(
+    #name='Rb',
+    spin=0,
+    mu=0,
+    mass='m'
+)
 
-ap.init_printing()
+print(rb)
 
-test = l_ket.rewrite('Jx')
-print(test)
+g = rb.add_level(
+    E = 0,
+    n = 1,
+    s = ap.S(1)/2,
+    l = 'S',
+    j = ap.S(1)/2,
+    m_j = -ap.S(1)/2
+)
 
-test1 = ap.qapply(ap.Jz * l_ket)
-test2 = ap.qapply(ap.Jz * j_ket)
-print(test1, test2)
+e = rb.add_level(
+    E = 1,
+    n = 2,
+    s = ap.S(1)/2,
+    l = 'P',
+    j = ap.S(1)/2,
+    m_j = ap.S(1)/2
+)
 
-test3 = j_ket.dual * l_ket
-ap.pprint(ap.represent(ap.Jz, basis=ap.Jz))
+t = ap.SphericalTensor(1, -1)
+stren, dbl = ap.transition_strength(g, e, t)
+
+ap.pprint(type(dbl))
+ap.pprint(dbl)

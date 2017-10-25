@@ -2,44 +2,77 @@
 
 from __future__ import print_function
 
-from . import sympify, JzKet, JzBra
+from sympy.core.compatibility import range
+from sympy.matrices import zeros
+from . import sympify, Abs, sqrt, S, clebsch_gordan, wigner_6j
+from .tensor import SphericalTensor
+from .doublebar import DoubleBar
+from atompy.multilevel import JzKet, m_values
 
 __all__ = [
+    'AtomicState',
     'Atom'
 ]
 
-# TODO: Add multilevel support.
-# See .multilevel
 
-class Level():
-    """Define's an atomic level.
+#-----------------------------------------------------------------------------
+# Helper Classes and Functions
+#-----------------------------------------------------------------------------
 
-    Does not define a complete symbolic level as in sympy.
+
+class AtomicState():
+    """Defines an atomic energy level.
 
     Parameters
     ==========
 
     E : Number, Symbol
-        Energy of the state.
+        The energy eignestate of the atomic level.
 
-    n : Int, Symbol
-        Level of the state.
+    level_ket : AtomicJzKet, JzKet
+        The atomic ket |n, s, l, j, m_j> that defines the level.
 
-    s : Number, Symbol
-        The electron spin of the level.
+    label : String
+        A label for this level.
 
-    l : Int, Symbol
-        The AM of the level.
-
-    j : Number, Symbol
-        The total AM of the level.
-
-    m : Number, Symbol
-        The Jz eigenvalue of the state.
+    atomic_label : String, Optional
+        The corresponding atomic label n^(2s+1)L_J.
     """
 
-    def __init__(self, **kwargs):
-        
+    def __init__(self, E, level_ket, label, atomic_label=None):
+        # We're assuming that all error handling
+        # has been done outside this class.
+        self.E = E
+        self.level_ket = level_ket
+        self.label = label
+        # TODO: bring the label and atomic_label functionality here.
+        self.atomic_label = atomic_label
+
+    def __repr__(self, sep='\t'):
+        out = '{0}' + sep + '{1}' + sep + '{2}' + sep + str({3})
+        out = out.format(
+            self.label,
+            self.atomic_label,
+            self.E,
+            self.level_ket
+        )
+        return out
+
+def f_values(J, I):
+    """Calculates how many F values exist between F=Abs(J-I) to F=J+I"""
+    f_min = Abs(J-I)
+    f_max = J + I
+    f_diff = F_max - F_min
+    size = 2*F_diff + 1
+    if not size.is_Integer or size < 0:
+        raise ValueError('size should be an integer, got J, I, size: %s, %s, %s' % (J, I, size))
+    return size, [f for f in range(f_min, f_max + 1)]
+
+
+#-----------------------------------------------------------------------------
+# Atom Class
+#-----------------------------------------------------------------------------
+
 
 class Atom():
     """Define a new atom.
@@ -50,7 +83,7 @@ class Atom():
     name : String
         The name of the atom (Rb, H, Hydrogen, etc).
 
-    spin : Number, Symbol
+    I : Number, Symbol
         The spin of the nucleus.
         Default is 0.
 
@@ -79,6 +112,7 @@ class Atom():
     #-------------------------------------------------------------------------
 
     _atomic_labels = set()
+    _labels = set()
 
     #-------------------------------------------------------------------------
     # Properties
@@ -92,12 +126,12 @@ class Atom():
     @property
     def spin(self):
         """The internal spin of the nucleus."""
-        return self.kwargs.get('spin', 0)
+        return self.kwargs.get('spin', S.Zero)
 
     @property
     def mu(self):
-        """The magnetic moment of the atom."""
-        return self.kwargs.get('mu', 0)
+        """The internal nuclear magnetic moment of the atom."""
+        return self.kwargs.get('mu', S.Zero)
 
     @property
     def mass(self):
@@ -130,11 +164,21 @@ class Atom():
         return self._levels
 
     @property
+    def labels(self):
+        """Returns a copy of the unique level labels in the atom."""
+        return self._labels.copy()
+
+    @property
+    def atomic_labels(self):
+        """Returns a copy of the unique atomic labels in the atom."""
+        return self._atomic_labels.copy()
+
+    @property
     def state(self):
         """The atomic density matrix."""
         return self._state
 
-    @property 
+    @property
     def hamiltonian(self):
         """The hamiltonian for the atom."""
         return self._hamiltonian
@@ -157,17 +201,14 @@ class Atom():
     # Methods
     #-------------------------------------------------------------------------
 
-    def __init__(self, *args, **kwargs):
-        # sympify the args & kwargs
-        args = sympify(args)
+    def __init__(self, **kwargs):
+        # sympify the kwargs
         for key in kwargs:
             if key == 'name':
                 kwargs[key] = str(kwargs[key])
-            #TODO: error checking
             else:
                 kwargs[key] = sympify(kwargs[key])
 
-        self.args = args
         self.kwargs = kwargs
         self._levels_list = [] # a list of the added levels
         self._levels = 0
@@ -208,13 +249,14 @@ class Atom():
                 'mu', self.mu
             )
             return out
-    
+
     #-------------------------------------------------------------------------
     # Operations
     #-------------------------------------------------------------------------
 
-    def add_level(self, **kwargs):
-        """Add an atomic energy level to the atom.
+    def add_level(self, E, n, s, l, j, m_j, label=None):
+        """Add an atomic energy level to the atom. 
+        Returns an AtomicLevel class representing the state.
 
         Parameters
         ==========
@@ -235,49 +277,94 @@ class Atom():
         j : Number, Symbol
             The atomic level's J total angular momentum.
 
-        m : Number, Symbol
+        m_j : Number, Symbol
             The atomic level's eigenstate of the Jz operator.
-        
+
+        label: String, Optional
+            The unique label for the state.
+            This will be used in the notation of the density matrix.
+            If none is given, the label will divert to a numbered index.
+
         Examples
         ========
-        #TODO: make examples
         """
+        # TODO: Make examples
 
-        if not len(kwargs) >= 6:
-            raise ValueError('There should be at least 6 arguments, got: %s' % len(kwargs))
-        
-        E = sympify(kwargs.pop('E'))
-        n = sympify(kwargs.pop('n'))
-        s = sympify(kwargs.pop('s'))
-        l = sympify(kwargs.pop('l'))
-        j = sympify(kwargs.pop('j'))
-        m = sympify(kwargs.pop('m'))
+        # TODO: Create automatic labels for 'E'
+        E = sympify(E)
+        n = sympify(n)
+        s = sympify(s)
+        #l = l
+        j = sympify(j)
+        m_j = sympify(m_j)
 
-        # convert l to a atomic label and error check it
+        if E.is_Number:
+            if not E.is_real:
+                raise ValueError('The energy of the level must be real, got %s' % E)
+
+        # convert l to an atomic label and error check it
         l_labels = ['S', 'P', 'D', 'F']
-        if str(l) in l_labels:
-            l = sympify(l_labels.index(str(l)))
-        elif ord(str(l)) <= ord('Z') and ord(str(l)) > ord('F'):
-            l = sympify(ord(str(l)))
-        else:
-            if l.is_number:
-                if (l) != int(l):
-                    raise ValueError('l should be a label or integer got: %s' % l)
-                if l in l_labels:
-                    l_label = l_labels.index(l)
-                else:
-                    l_label = chr(ord('F') + l-4)
+        if isinstance(l, str):
+            if str(l) in l_labels:
+                l = sympify(l_labels.index(l))
+            elif ord(l) <= ord('Z') and ord(l) > ord('F') and len(l) == 1:
+                l = sympify(ord(l))
             else:
                 raise ValueError('l should be a label, integer, or half integer, got: %s' % l)
-
-        # label to add to atomic labels
-        label = str(n) + l_label + '_' + str(j)
-        if label not in self._atomic_labels:
-            self._atomic_labels.add(label)
         else:
-            raise ValueError('The level you are adding already exists in this atom: %s' % label)
+            l = sympify(l)
+
+        # make the level ket, also error checks
+        level_ket = JzKet(n, s, l, j, m_j)
+
+        # get the label necessary for the atomic label
+        if l.is_Number:
+            if l < 4:
+                l_label = l_labels[l]
+            elif l >= 4:
+                l_label = chr(ord('F') + l - 4)
+
+        # The atomic label
+        # This differes from the user defined label,
+        # which is used to make the notation of the density
+        # matrix more convenient
+        atomic_label = str(n) + l_label + '_' + str(j) + '(m_j=' + str(m_j) + ')'
+        if atomic_label not in self._atomic_labels:
+            self._atomic_labels.add(atomic_label)
+        else:
+            raise ValueError(
+                'The level you are adding already exists in this atom: %s' % atomic_label
+            )
+
+        # make the string label
+        if label is None:
+            label = 0
+            while str(label) in self._labels:
+                label += 1
+        label = str(label)
+
+        # check its uniqueness
+        if label not in self._labels:
+            self._labels.add(label)
+        else:
+            raise ValueError(
+                'The given label already exists in this atom.\n'
+                + 'Existing labels: %s, given: %s' % (self.labels, label)
+                )
 
         # define the hamiltonian
-        level_op = JzKet(j, m) * JzBra(j, m)
+        level_op = level_ket * level_ket.dual
         self._hamiltonian += E * level_op
+
+        # add to the level
+        new_level = AtomicState(E, level_ket, label, atomic_label)
+        self._levels_list.append(new_level)
         self._levels += 1
+
+        return new_level
+    
+    # TODO: Add a method to calculate zeeman splitting
+    # TODO: Integrate support for adding all m_j sublevels for a given j
+    # TODO: Add method to calculate spin orbit coupling
+    # TODO: Add support for adding all j and m_j sublevels for a given L and S
+    # TODO: Add a method to calculate hyperfine splitting
