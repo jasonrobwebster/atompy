@@ -9,17 +9,8 @@ rb = ap.Atom(
 
 print(rb)
 
-rb.add_level(
-    E = 'E_0',
-    n = 1,
-    s = ap.S(1)/2,
-    l = 'S',
-    j = ap.S(1)/2,
-    m_j = ap.S(1)/2
-)
-
-rb.add_level(
-    E = 'E_1',
+g = rb.add_level(
+    E = 0,
     n = 1,
     s = ap.S(1)/2,
     l = 'S',
@@ -27,6 +18,17 @@ rb.add_level(
     m_j = -ap.S(1)/2
 )
 
-print(rb)
+e = rb.add_level(
+    E = 1,
+    n = 2,
+    s = ap.S(1)/2,
+    l = 'P',
+    j = ap.S(1)/2,
+    m_j = ap.S(1)/2
+)
 
-ap.pprint(rb.hamiltonian)
+t = ap.SphericalTensor(1, -1)
+stren, dbl = ap.transition_strength(g, e, t)
+
+ap.pprint(type(dbl))
+ap.pprint(dbl)

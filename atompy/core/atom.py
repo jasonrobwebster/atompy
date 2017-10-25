@@ -2,10 +2,15 @@
 
 from __future__ import print_function
 
-from . import sympify, range, Abs, sqrt, zeros, S
-from ..multilevel.spin import JzKet
+from sympy.core.compatibility import range
+from sympy.matrices import zeros
+from . import sympify, Abs, sqrt, S, clebsch_gordan, wigner_6j
+from .tensor import SphericalTensor
+from .doublebar import DoubleBar
+from atompy.multilevel import JzKet, m_values
 
 __all__ = [
+    'AtomicState',
     'Atom'
 ]
 
@@ -16,17 +21,31 @@ __all__ = [
 
 
 class AtomicState():
-    """Define's an atomic energy level.
+    """Defines an atomic energy level.
 
-    Does not define a complete symbolic level as in sympy.
-    Only useful within the context of the Atom class."""
+    Parameters
+    ==========
 
-    def __init__(self, E, level_ket, label, atomic_label):
+    E : Number, Symbol
+        The energy eignestate of the atomic level.
+
+    level_ket : AtomicJzKet, JzKet
+        The atomic ket |n, s, l, j, m_j> that defines the level.
+
+    label : String
+        A label for this level.
+
+    atomic_label : String, Optional
+        The corresponding atomic label n^(2s+1)L_J.
+    """
+
+    def __init__(self, E, level_ket, label, atomic_label=None):
         # We're assuming that all error handling
         # has been done outside this class.
         self.E = E
         self.level_ket = level_ket
         self.label = label
+        # TODO: bring the label and atomic_label functionality here.
         self.atomic_label = atomic_label
 
     def __repr__(self, sep='\t'):
@@ -40,7 +59,7 @@ class AtomicState():
         return out
 
 def f_values(J, I):
-    """Calculates how many values exist between F=Abs(J-I) to F=J+I"""
+    """Calculates how many F values exist between F=Abs(J-I) to F=J+I"""
     f_min = Abs(J-I)
     f_max = J + I
     f_diff = F_max - F_min
@@ -111,7 +130,7 @@ class Atom():
 
     @property
     def mu(self):
-        """The internal magnetic moment of the atom."""
+        """The internal nuclear magnetic moment of the atom."""
         return self.kwargs.get('mu', S.Zero)
 
     @property
@@ -177,59 +196,6 @@ class Atom():
     def hartree_fock(cls):
         """The Hartree-Fock method for deterimining the energy levels and states."""
         pass
-
-    @classmethod
-    def transition_strengths(cls, g_state, e_state, decouple='J'):
-        """Calculate the transition strengths between two atomic states.
-        This process iterates over the F numbers of a state, where 
-        F = |J-I|, ..., J+I and J is the J quantum number of the state.
-
-        Returns a Matrix of relative transition strengths from the ground state g
-        to the excited state e. 
-
-        Parameters
-        ==========
-
-        g_state : AtomicLevel
-            The ground atomic state.
-
-        e_state : AtomicLevel
-            The excited atomic state.
-
-        decouple : String, Optional
-            The atomic transition to decompose to, either J' or 'L'.
-        """
-        
-        decouple = str(decouple)
-        if decouple not in ['L', 'J']:
-            raise ValueError("decouple param is not 'L' or 'J', got: %s" % decouple)
-
-        # make our notation simpler
-        I = cls.spin
-
-        # assume our states are atomic states
-        assert isinstance(g_state, AtomicState)
-        assert isinstance(e_state, AtomicState)
-
-        g_ket = g_state.level_ket
-        e_ket = e_state.level_ket
-        Jg = g_ket.j
-        Je = e_ket.j
-        E_diff = e_state.E - g_state.E
-
-        # label the gamma symbol
-        label_g = g_state.label
-        label_e = e_state.label
-        gamma = 'gamma_{' + label_g + ',' + label_e + '}'
-        gamma = sympify(gamma)
-
-        # get the number of F values for the ground and excited state
-        size_gf, gf_values = f_values(Jg, I)
-        size_ef, ef_values = f_values(Je, I)
-
-        # create a matrix that will store a table of 
-        result = zeros(size_gf*size_ef, size_ef)
-
 
     #-------------------------------------------------------------------------
     # Methods
@@ -332,6 +298,10 @@ class Atom():
         j = sympify(j)
         m_j = sympify(m_j)
 
+        if E.is_Number:
+            if not E.is_real:
+                raise ValueError('The energy of the level must be real, got %s' % E)
+
         # convert l to an atomic label and error check it
         l_labels = ['S', 'P', 'D', 'F']
         if isinstance(l, str):
@@ -369,7 +339,7 @@ class Atom():
         # make the string label
         if label is None:
             label = 0
-            while str(label) not in self._labels:
+            while str(label) in self._labels:
                 label += 1
         label = str(label)
 
@@ -392,6 +362,9 @@ class Atom():
         self._levels += 1
 
         return new_level
-
-
-        
+    
+    # TODO: Add a method to calculate zeeman splitting
+    # TODO: Integrate support for adding all m_j sublevels for a given j
+    # TODO: Add method to calculate spin orbit coupling
+    # TODO: Add support for adding all j and m_j sublevels for a given L and S
+    # TODO: Add a method to calculate hyperfine splitting
