@@ -144,7 +144,10 @@ class AtomSpinState(CoupledSpinState):
         # jn[2] = I (in which case j = F)
 
         # check j, m, jn with CoupledSpinState
-        state = CoupledSpinState(j, m, jn) if len(jcoupling) == 0 else CoupledSpinState(j, m, jn, *jcoupling)
+        if len(jcoupling) == 0:
+            state = CoupledSpinState(j, m, jn)
+        else:
+            state = CoupledSpinState(j, m, jn, *jcoupling)
 
         # check length of jn, don't need more than three
         if len(jn) > 3:
@@ -155,7 +158,7 @@ class AtomSpinState(CoupledSpinState):
         m = sympify(m)
         jn = state.jn
         jcoupling = state.coupling
-        l = jn[1] # the l quantum number
+        l = jn[1]
 
         del state
 
@@ -173,7 +176,7 @@ class AtomSpinState(CoupledSpinState):
 
         if n.is_number and l.is_number:
             if l >= n:
-                raise ValueError('l must be <= n, got n, l: %s, %s' % (n, l))
+                raise ValueError('l must be < n, got n, l: %s, %s' % (n, l))
 
         return State.__new__(cls, n, j, m, jn, jcoupling)
 
@@ -247,34 +250,49 @@ class AtomSpinState(CoupledSpinState):
     #-------------------------------------------------------------------------
 
     def _print_label(self, printer, *args):
-        label = [
-            'n=%s' %printer._print(self.n),
-            'j=%s' %printer._print(self.j),
-            'm_j=%s' %printer._print(self.m)]
+        if self.i == 0:
+            label = [
+                'n=%s' %printer._print(self.n),
+                'j=%s' %printer._print(self.j),
+                'm=%s' %printer._print(self.m)]
+        else:
+            label = [
+                'n=%s' %printer._print(self.n),
+                'f=%s' %printer._print(self.j),
+                'm=%s' %printer._print(self.m)]
         for i, ji in enumerate(self.jn):
             if i == 0:
                 label.append(
-                    'S=%s' % printer._print(ji)
+                    's=%s' % printer._print(ji)
                 )
             if i == 1:
                 label.append(
-                    'L=%s' % printer._print(ji)
+                    'l=%s' % printer._print(ji)
                 )
             if i == 2:
                 label.append(
-                    'I=%s' % printer._print(ji)
+                    'i=%s' % printer._print(ji)
                 )
         return ', '.join(label)
 
     def _print_label_pretty(self, printer, *args):
-        label = [self.n, self.j, self.m]
+        if self.i == 0:
+            label = [
+                'n=%s' %printer._print(self.n),
+                'j=%s' %printer._print(self.j),
+                'm=%s' %printer._print(self.m)]
+        else:
+            label = [
+                'n=%s' %printer._print(self.n),
+                'f=%s' %printer._print(self.j),
+                'm=%s' %printer._print(self.m)]
         for i, ji in enumerate(self.jn):
             if i == 0:
-                symb = 'S'
+                symb = 's'
             elif i == 1:
-                symb = 'L'
+                symb = 'l'
             elif i == 2:
-                symb = 'I'
+                symb = 'i'
             symb = pretty_symbol(symb)
             symb = prettyForm(symb + '=')
             item = prettyForm(*symb.right(printer._print(ji)))
@@ -282,7 +300,16 @@ class AtomSpinState(CoupledSpinState):
         return self._print_sequence_pretty(label, self._label_separator, printer, *args)
 
     def _print_label_latex(self, printer, *args):
-        label = [self.n, self.j, self.m]
+        if self.i == 0:
+            label = [
+                'n=%s' %printer._print(self.n),
+                'j=%s' %printer._print(self.j),
+                'm=%s' %printer._print(self.m)]
+        else:
+            label = [
+                'n=%s' %printer._print(self.n),
+                'f=%s' %printer._print(self.j),
+                'm=%s' %printer._print(self.m)]
         for i, ji in enumerate(self.jn):
             if i == 0:
                 label.append('S=%s' % printer._print(ji) )
