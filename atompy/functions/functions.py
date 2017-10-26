@@ -92,5 +92,14 @@ def transition_strength(g_state, e_state, tensor, spin=None, decouple=True):
         result *= (-1)**(Je+Lg+1+Sg) * sqrt((2*Je+1)*(2*Lg+1))
         result *= wigner_6j(Lg, Le, 1, Je, Jg, Sg)
         dbl_bar = DoubleBar(Lg, Le, E_diff, gamma)
-    
+
     return result, dbl_bar
+
+def weak_zeeman(atomic_ket, mag_field):
+    """Calculates the energy shift due to a weak magnetic field.
+
+    Parameters
+    ==========
+
+    atomic_ket: AtomicJxKet, AtomicJyKet, AtomicJzKet
+        
