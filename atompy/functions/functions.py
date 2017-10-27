@@ -4,12 +4,17 @@ from __future__ import print_function
 
 from atompy.core import AtomicState, SphericalTensor, DoubleBar, clebsch_gordan, sqrt, wigner_6j, sympify
 
+
 __all__ = [
     'transition_strength'
 ]
 
-def transition_strength(g_state, e_state, tensor, spin=None, decouple=True):
-    """Calculate the transition strengths between two atomic states [1].
+
+# TODO: Extend these to functions to classes
+
+def transition_strength(ground_state, excited_state, tensor, decouple=True):
+    """Calculate the transition strengths between two atomic states [1], given by
+    <ground_state|tensor|excited_state>.
 
     Returns the relative transition strength from the ground state g
     to the excited state e. 
@@ -27,18 +32,40 @@ def transition_strength(g_state, e_state, tensor, spin=None, decouple=True):
         An instance of the SphericalTensor class that defines the rank
         and polarization of light.
 
-    spin : Number
-        The internal nuclear spin number I. If given, the output returns
-        a table of transition strengths from F=|J-I| to F=J+I.
-
     decouple : Boolean, Optional
-        Whether to decouple the resulting <J||..||J'> to <L||..||L'>. 
+        Whether to decouple the resulting <F||tensor||F'> to <L||tensor||L'>. 
         Defaults to True.
 
     Examples
     ========
 
-
+    Create an atom with two states and find the transition strength between them.
+    >>> import atompy as ap
+    >>> # make a hydrogen atom with an S_1/2 and a P_1/2 state 
+    >>> h = ap.Atom(name='H')
+    >>> ground_state = h.add_level(
+    ...     energy='E_0',
+    ...     n=1,
+    ...     s=ap.S(1)/2,
+    ...     l='S',
+    ...     j=ap.S(1)/2,
+    ...     m=ap.S(1)/2,
+    ...     label='S'
+    ... )
+    >>> excited_state = h.add_level(
+    ...     energy='E_1',
+    ...     n=2,
+    ...     s=ap.S(1)/2,
+    ...     l='P',
+    ...     j=ap.S(1)/2,
+    ...     m=ap.S(1)/2,
+    ...     label='P'
+    ... )
+    >>> # define the tensor as the dipole tensor d_q
+    >>> tensor = ap.dipole_tensor(q=0)
+    >>> strength = ap.transition_strength(ground_state, excited_state, dipole)
+    >>> print(strength)
+    1/9
 
     References
     ==========
@@ -48,12 +75,14 @@ def transition_strength(g_state, e_state, tensor, spin=None, decouple=True):
     """
 
     # assume our states are atomic states
-    assert isinstance(g_state, AtomicState)
-    assert isinstance(e_state, AtomicState)
+    assert isinstance(ground_state, AtomicState)
+    assert isinstance(excited_state, AtomicState)
     assert isinstance(tensor, SphericalTensor)
 
-    g_ket = g_state.level_ket
-    e_ket = e_state.level_ket
+    # get the ground and excited kets and their useful values.
+    g_ket = ground_state.ket
+    e_ket = excited_state.ket
+
     Fg = g_ket.f
     Fe = e_ket.f
     Jg = g_ket.j
@@ -70,20 +99,18 @@ def transition_strength(g_state, e_state, tensor, spin=None, decouple=True):
     assert i_g == i_e
     I = i_g
 
-    E_diff = e_state.E - g_state.E
     k = tensor.k
     q = tensor.q
 
     # label the gamma symbol
-    label_g = g_state.label
-    label_e = e_state.label
+    label_g = ground_state.label
+    label_e = excited_state.label
     gamma = 'Gamma' + label_g  + label_e
     gamma = sympify(gamma)
 
     # Give the result
     result = (-1)**(Fe-Fg+m_g-m_e) * sqrt((2*Fg+1) / (2*Fe+1))
     result *= clebsch_gordan(Fg, k, Fe, m_g, -q, m_e)
-    dbl_bar = DoubleBar(Fg, Fe, E_diff, gamma)
     if decouple:
         # decouple to <J||..||J'>
         result *= (-1)**(Fe+Jg+1+I) * sqrt((2*Fe+1)*(2*Jg+1))
@@ -91,15 +118,19 @@ def transition_strength(g_state, e_state, tensor, spin=None, decouple=True):
         # decouple to <L||..||L'>
         result *= (-1)**(Je+Lg+1+Sg) * sqrt((2*Je+1)*(2*Lg+1))
         result *= wigner_6j(Lg, Le, 1, Je, Jg, Sg)
-        dbl_bar = DoubleBar(Lg, Le, E_diff, gamma)
 
-    return result, dbl_bar
+    return result
 
-def weak_zeeman(atomic_ket, mag_field):
+def weak_zeeman(ket, b_z):
     """Calculates the energy shift due to a weak magnetic field.
 
     Parameters
     ==========
 
-    atomic_ket: AtomicJxKet, AtomicJyKet, AtomicJzKet
-        
+    ket : AtomicJzKet
+        An instance of an atomic ket.
+
+    b_z : Number, Symbol
+        The magnetic field 
+    """
+    pass

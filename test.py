@@ -1,11 +1,6 @@
 import atompy as ap
 
-rb = ap.Atom(
-    #name='Rb',
-    spin='II',
-    mu=0,
-    mass='m'
-)
+rb = ap.Atom(name='H')
 
 print(rb)
 
@@ -15,7 +10,6 @@ g = rb.add_level(
     s = ap.S(1)/2,
     l = 'S',
     j = ap.S(1)/2,
-    f = ap.S(7)/2,
     m = ap.S(1)/2
 )
 
@@ -25,12 +19,11 @@ e = rb.add_level(
     s = ap.S(1)/2,
     l = 'P',
     j = ap.S(1)/2,
-    f = ap.S(7)/2,
     m = ap.S(1)/2
 )
 
 t = ap.SphericalTensor(1, 0)
-stren, dbl = ap.transition_strength(g, e, t)
+stren = ap.transition_strength(g, e, t)
 
 ap.pprint(stren**2)
 ap.pprint(dbl)

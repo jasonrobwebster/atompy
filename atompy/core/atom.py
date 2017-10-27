@@ -40,11 +40,11 @@ class AtomicState():
         The corresponding atomic label n^(2s+1)L_J.
     """
 
-    def __init__(self, E, level_ket, label, atomic_label=None):
+    def __init__(self, E, ket, label, atomic_label=None):
         # We're assuming that all error handling
         # has been done outside this class.
         self.E = E
-        self.level_ket = level_ket
+        self.ket = ket
         self.label = label
         # TODO: bring the label and atomic_label functionality here.
         self.atomic_label = atomic_label
