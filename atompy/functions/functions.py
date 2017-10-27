@@ -2,11 +2,12 @@
 
 from __future__ import print_function
 
-from atompy.core import AtomicState, SphericalTensor, DoubleBar, clebsch_gordan, sqrt, wigner_6j, sympify
+from atompy.core import AtomicState, SphericalTensor, DoubleBar, clebsch_gordan, sqrt, wigner_6j, sympify, S
 
 
 __all__ = [
-    'transition_strength'
+    'transition_strength',
+    'weak_zeeman'
 ]
 
 
@@ -64,8 +65,7 @@ def transition_strength(ground_state, excited_state, tensor, decouple=True):
     >>> # define the tensor as the dipole tensor d_q
     >>> tensor = ap.dipole_tensor(q=0)
     >>> strength = ap.transition_strength(ground_state, excited_state, dipole)
-    >>> print(strength)
-    1/9
+    >>> # strength = 1/9
 
     References
     ==========
@@ -121,16 +121,70 @@ def transition_strength(ground_state, excited_state, tensor, decouple=True):
 
     return result
 
-def weak_zeeman(ket, b_z):
+def weak_zeeman(ket, b, **kwargs):
     """Calculates the energy shift due to a weak magnetic field.
 
     Parameters
     ==========
 
-    ket : AtomicJzKet
+    ket : AtomicJxKet, AtomicJyKet, AtomicJzKet
         An instance of an atomic ket.
 
-    b_z : Number, Symbol
-        The magnetic field 
+    b : Number, Symbol
+        The magnetic field in the direction of the given ket.
+
+    Also accepts the following keyword arguments:
+    
+    g_l : Number, Symbol
+        The L gyromagnetic factor.
+        Defaults to 1.
+
+    g_s : Number, Symbol
+        The electron spin gyromagnetic factor.
+        Defaults to the CODATA [1] value.
+
+    mu_b : Number, Symbol
+        The Bohr magnetion.
+        Defaults to the SI CODATA value [2] (without the units).
+
+    g_i : Number, Symbol
+        The nuclear spin I gyromagnetic factor. Defaults to 0.
+
+    Examples
+    ========
+
+
+
+    References
+    ==========
+
+    .. [1] https://physics.nist.gov/cgi-bin/cuu/Value?gem
+    .. [2] https://physics.nist.gov/cgi-bin/cuu/Value?mub
     """
-    pass
+
+    if isinstance(ket, AtomicState):
+        ket = ket.ket
+    
+    b = sympify(b)
+    g_l = sympify(kwargs.get('g_l', 1))
+    g_s = sympify(kwargs.get('g_s', 2.00231930436182))
+    mu_b = sympify(kwargs.get('mu_b', 927.4009994 * S(10)**(-26)))
+    g_i = sympify(kwargs.get('g_i', 0))
+    
+    s = ket.s
+    l = ket.l
+    j = ket.j
+    i = ket.i
+    f = ket.f
+
+    # calculate the lande g factor
+    g_j = g_l + (g_s - g_l) * ((j*(j+1) + s*(s+1) - l*(l+1)) / (2*j*(j+1)))
+    if i == 0:
+        return mu_b * g_j * ket.m * b
+    else:
+        g_f = g_j * ((f*(f+1) - i*(i+1) + j*(j+1)) / (2*f*(f+1))) 
+        g_f += g_i * ((f*(f+1) + i*(i+1) - j*(j+1)) / (2*f*(f+1)))
+        return mu_b * g_f * ket.m * b
+
+
+    
