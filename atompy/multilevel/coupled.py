@@ -137,6 +137,8 @@ AtomJzKet = JzKet
 class AtomSpinState(CoupledSpinState):
     """Base class for atomic spin states."""
 
+    _label_separator = ', '
+
     def __new__(cls, n, j, m, jn, *jcoupling):
         # jn is now defined as
         # jn[0] = S
@@ -258,7 +260,7 @@ class AtomSpinState(CoupledSpinState):
         else:
             label = [
                 'n=%s' %printer._print(self.n),
-                'f=%s' %printer._print(self.j),
+                'f=%s' %printer._print(self.f),
                 'm=%s' %printer._print(self.m)]
         for i, ji in enumerate(self.jn):
             if i == 0:
@@ -284,7 +286,7 @@ class AtomSpinState(CoupledSpinState):
         else:
             label = [
                 'n=%s' %printer._print(self.n),
-                'f=%s' %printer._print(self.j),
+                'f=%s' %printer._print(self.f),
                 'm=%s' %printer._print(self.m)]
         for i, ji in enumerate(self.jn):
             if i == 0:
@@ -308,7 +310,7 @@ class AtomSpinState(CoupledSpinState):
         else:
             label = [
                 'n=%s' %printer._print(self.n),
-                'f=%s' %printer._print(self.j),
+                'f=%s' %printer._print(self.f),
                 'm=%s' %printer._print(self.m)]
         for i, ji in enumerate(self.jn):
             if i == 0:
@@ -389,6 +391,7 @@ class AtomSpinState(CoupledSpinState):
 
     def _eval_innerproduct_AtomJxBraCoupled(self, bra, **hints):
         result = KroneckerDelta(self.n, bra.n)
+        result *= KroneckerDelta(self.f, bra.f)
         result *= KroneckerDelta(self.j, bra.j)
         result *= KroneckerDelta(self.s, bra.s)
         result *= KroneckerDelta(self.l, bra.l)
@@ -401,6 +404,7 @@ class AtomSpinState(CoupledSpinState):
 
     def _eval_innerproduct_AtomJyBraCoupled(self, bra, **hints):
         result = KroneckerDelta(self.n, bra.n)
+        result *= KroneckerDelta(self.f, bra.f)
         result *= KroneckerDelta(self.j, bra.j)
         result *= KroneckerDelta(self.s, bra.s)
         result *= KroneckerDelta(self.l, bra.l)
@@ -413,8 +417,8 @@ class AtomSpinState(CoupledSpinState):
 
     def _eval_innerproduct_AtomJzBraCoupled(self, bra, **hints):
         result = KroneckerDelta(self.n, bra.n)
+        result *= KroneckerDelta(self.f, bra.f)
         result *= KroneckerDelta(self.j, bra.j)
-        result *= KroneckerDelta(self.s, bra.s)
         result *= KroneckerDelta(self.l, bra.l)
         result *= KroneckerDelta(self.i, bra.i)
         if bra.dual_class() is not self.__class__:
