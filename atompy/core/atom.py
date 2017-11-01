@@ -8,7 +8,7 @@ from . import sympify, Abs, sqrt, S, clebsch_gordan, wigner_6j, m_values
 from .tensor import SphericalTensor
 from .doublebar import DoubleBar
 from atompy.multilevel import AtomicJzKet
-
+from atompy.functions import weak_zeeman
 
 __all__ = [
     'AtomicState',
@@ -49,13 +49,13 @@ class AtomicState():
         # TODO: bring the label and atomic_label functionality here.
         self.atomic_label = atomic_label
 
-    def __repr__(self, sep='\t'):
-        out = '{0}' + sep + '{1}' + sep + '{2}' + sep + str({3})
+    def __repr__(self, sep='  '):
+        out = 'label={0}' + sep + 'atomic_label={1}' + sep + 'energy={2}' + sep + 'ket=' + str({3})
         out = out.format(
             self.label,
             self.atomic_label,
             self.E,
-            self.level_ket
+            self.ket
         )
         return out
 
@@ -94,6 +94,9 @@ class Atom():
 
     mass : Number, Symbol
         The mass of the atom.
+
+    mag_field : Number, Symbol
+        The magnetic field that the atom is exposed to.
 
     isotope : Int, Symbol
         The isotope number of the atom.
@@ -138,6 +141,10 @@ class Atom():
     def mass(self):
         """The mass of the atom."""
         return self.kwargs.get('mass')
+
+    @property
+    def mag_field(self):
+        return self.kwargs.get('mag_field', S.Zero)
 
     @property
     def isotope(self):
@@ -255,7 +262,7 @@ class Atom():
     # Operations
     #-------------------------------------------------------------------------
 
-    def add_level(self, **kwargs):
+    def add_level(self, energy, n, s, l, j, *args, **kwargs):
         """Add an atomic energy level to the atom. 
         Returns an AtomicLevel class representing the state.
         All parameters are passed as keyword arguments.
@@ -264,7 +271,7 @@ class Atom():
         ==========
 
         energy : Number, Symbol
-            The atomic energy level.
+            The atomic energy level before a zeeman shift.
 
         n : Int, Symbol
             The atomic energy level number, or principle number.
@@ -294,21 +301,54 @@ class Atom():
             This will be used in the notation of the density matrix.
             If none is given, the label will divert to a numbered index.
 
+
+        Additional kwargs are passed to the weak_zeeman function. See weak_zeeman for usage.
+
         Examples
         ========
+
+
+
+        See Also
+        ========
+
+        The weak_zeeman function.
         """
         # TODO: Make examples
 
         # TODO: Create automatic labels for 'E'
-        E = sympify(kwargs['energy'])
-        n = sympify(kwargs['n'])
-        s = sympify(kwargs['s'])
-        l = kwargs['l']
-        j = sympify(kwargs['j'])
-        m = sympify(kwargs['m'])
-        label = kwargs.get('label')
-        if self.spin != 0:
-            f = sympify(kwargs['f'])
+        E = sympify(energy)
+        n = sympify(n)
+        s = sympify(s)
+        #l = l
+        j = sympify(j)
+        i = self.spin
+
+        if len(args) > 2:
+            raise TypeError('Too many arguments')
+
+        if i != 0:
+            if len(args) == 2:
+                f = sympify(args[0])
+                m = sympify(args[1])
+            elif len(args) <= 1:
+                if len(args) == 0:
+                    if kwargs.get('f') is not None:
+                        f = sympify(kwargs.pop('f'))
+                    else:
+                        raise TypeError('Missing required value f.')
+                if kwargs.get('m') is not None:
+                    m = sympify(kwargs.pop('m'))
+                else:
+                    raise TypeError('Missing required value m.')
+        elif i == 0:
+            if len(args) >= 1:
+                m = sympify(args[0])
+            elif len(args) == 0:
+                if kwargs.get('m') is not None:
+                    m = sympify(kwargs.pop('m'))
+                else:
+                    raise TypeError('Missing required value m.')
 
         if E.is_Number:
             if not E.is_real:
@@ -338,6 +378,10 @@ class Atom():
                     )
             level_ket = AtomicJzKet(n, f, m, (s, l, i), [(1, 2, j), (1, 3, f)])
 
+        # calculate the energy shift due to a weak magnetic field
+        E_shift = weak_zeeman(level_ket, self.mag_field, **kwargs)
+        E_level = E + E_shift
+
         # get the label necessary for the atomic label
         if l.is_Number:
             if l < 4:
@@ -360,7 +404,12 @@ class Atom():
                 'The level you are adding already exists in this atom: %s' % atomic_label
             )
 
-        # make the string label
+        # get the label
+        if kwargs.get('label') is not None:
+            label = kwargs.pop('label')
+        else:
+            label = None
+        # make the label if none exists
         if label is None:
             label = 0
             while str(label) in self._labels:
@@ -381,14 +430,130 @@ class Atom():
         self._hamiltonian += E * level_op
 
         # add to the level
-        new_level = AtomicState(E, level_ket, label, atomic_label)
+        new_level = AtomicState(E_level, level_ket, label, atomic_label)
         self._levels_list.append(new_level)
         self._levels += 1
 
         return new_level
     
-    # TODO: Add a method to calculate zeeman splitting
-    # TODO: Integrate support for adding all m_j sublevels for a given j
+    def add_m_sublevels(self, energy, n, s, l, j, *args, **kwargs):
+        """Adds all m sublevels for a given atomic state.
+        Returns a list of the added sublevels.
+
+        Parameters
+        ==========
+
+        energy : Number, Symbol
+            The atomic energy level before zeeman splitting.
+
+        n : Int, Symbol
+            The atomic energy level number, or principle number.
+
+        s: Number, Symbol
+            The total electron spin of the atomic level.
+
+        l : Int, String, Symbol
+            The atomic level's L total angular momentum.
+            Accepts an integer or an atomic label ('S', 'P', etc).
+
+        j : Number, Symbol
+            The atomic level's J total angular momentum.
+            If the spin of the atom is non zero, this becomes a coupling
+            paramter for l and s.
+
+        f : Number, Symbol
+            The atomic level's F total angular momentum.
+            This argument is not required if the atomic spin is zero.
+
+        labels : List
+            List of strings that provide a unique label for each of the added
+            sublevels. Should be of length 2*f+1, or 2*j+1 if the atomic spin
+            is zero. The labels in this list should correspond to the order of
+            m values given by m = -f, m = -f+1, ..., m = f.
+
+
+        Additional kwargs are passed to the add_level function. See add_level for usage.
+
+        Examples
+        ========
+
+
+
+        See Also
+        ========
+
+        The add_level function.
+        """
+
+        E = sympify(energy)
+        n = sympify(n)
+        s = sympify(s)
+        #l = l
+        j = sympify(j)
+        i = self.spin
+
+        if kwargs.get('labels') is not None:
+            labels = kwargs.pop('labels')
+        else:
+            labels = None
+        
+        if i != 0:
+            if len(args) == 1:
+                f = sympify(args[0])
+            elif len(args) == 0:
+                if kwargs.get('f') is not None:
+                    f = sympify(kwargs.pop('f'))
+                else:
+                    raise TypeError('Missing required value f.')
+            else:
+                raise TypeError('Too many arguments')
+        else:
+            f = j
+
+        # convert l to an atomic label and error check it
+        l_labels = ['S', 'P', 'D', 'F']
+        if isinstance(l, str):
+            if str(l) in l_labels:
+                l = sympify(l_labels.index(l))
+            elif ord(l) <= ord('Z') and ord(l) > ord('F') and len(l) == 1:
+                l = sympify(ord(l))
+            else:
+                raise ValueError('l should be a label, integer, or half integer, got: %s' % l)
+        else:
+            l = sympify(l)
+
+        m_vals = [-f + i for i in range(2*f+1)]
+
+        if labels is not None:
+            labels = list(labels)
+            if len(labels) != 2*f+1:
+                if i == 0:
+                    raise ValueError(
+                        'Length of the labels should be of length 2j+1, got %s' % len(labels)
+                    )
+                else:
+                    raise ValueError(
+                        'Length of the labels should be of length 2f+1, got %s' % len(labels)
+                    )
+
+        out = []
+        for index, m in enumerate(m_vals):
+            if i == 0:
+                args = tuple([m])
+            else:
+                args = (f, m)
+            # TODO: find a better way to do this
+            # must be some python trickery that allows conditional keywords based
+            # on whether or not they are None
+            if labels is not None:
+                state = self.add_level(E, n, s, l, j, *args, label=labels[index])
+            else:
+                state = self.add_level(E, n, s, l, j, *args)
+            out.append(state)
+
+        return out
+        
+
     # TODO: Add method to calculate spin orbit coupling
     # TODO: Add support for adding all j and m_j sublevels for a given L and S
     # TODO: Add a method to calculate hyperfine splitting

@@ -2,7 +2,7 @@
 
 from __future__ import print_function
 
-from atompy.core import AtomicState, SphericalTensor, DoubleBar, clebsch_gordan, sqrt, wigner_6j, sympify, S
+from atompy.core import clebsch_gordan, sqrt, wigner_6j, sympify, S
 
 
 __all__ = [
@@ -73,11 +73,12 @@ def transition_strength(ground_state, excited_state, tensor, decouple=True):
     .. [1] Steck, D.A., 2007. Quantum and atom optics. p. 336
         http://atomoptics-nas.uoregon.edu/~dsteck/teaching/quantum-optics/quantum-optics-notes.pdf
     """
+    from atompy.core import AtomicState, SphericalTensor
 
     # assume our states are atomic states
-    assert isinstance(ground_state, AtomicState)
-    assert isinstance(excited_state, AtomicState)
-    assert isinstance(tensor, SphericalTensor)
+    #assert isinstance(ground_state, AtomicState)
+    #assert isinstance(excited_state, AtomicState)
+    #assert isinstance(tensor, SphericalTensor)
 
     # get the ground and excited kets and their useful values.
     g_ket = ground_state.ket
@@ -161,9 +162,6 @@ def weak_zeeman(ket, b, **kwargs):
     .. [1] https://physics.nist.gov/cgi-bin/cuu/Value?gem
     .. [2] https://physics.nist.gov/cgi-bin/cuu/Value?mub
     """
-
-    if isinstance(ket, AtomicState):
-        ket = ket.ket
     
     b = sympify(b)
     g_l = sympify(kwargs.get('g_l', 1))
@@ -184,7 +182,6 @@ def weak_zeeman(ket, b, **kwargs):
     else:
         g_f = g_j * ((f*(f+1) - i*(i+1) + j*(j+1)) / (2*f*(f+1))) 
         g_f += g_i * ((f*(f+1) + i*(i+1) - j*(j+1)) / (2*f*(f+1)))
+        if f == 0:
+            g_f = 0
         return mu_b * g_f * ket.m * b
-
-
-    

@@ -273,6 +273,9 @@ class AtomSpinState(CoupledSpinState):
                 )
             if i == 2:
                 label.append(
+                    'j=%s' % printer._print(self.j)
+                )
+                label.append(
                     'i=%s' % printer._print(ji)
                 )
         return ', '.join(label)
@@ -314,11 +317,12 @@ class AtomSpinState(CoupledSpinState):
                 'm=%s' %printer._print(self.m)]
         for i, ji in enumerate(self.jn):
             if i == 0:
-                label.append('S=%s' % printer._print(ji) )
+                label.append('s=%s' % printer._print(ji) )
             if i == 1:
-                label.append('L=%s' % printer._print(ji) )
+                label.append('l=%s' % printer._print(ji) )
             if i == 2:
-                label.append('I=%s' % printer._print(ji) )
+                label.append('j=%s' % printer._print(self.j) )
+                label.append('i=%s' % printer._print(ji) )
         return self._print_sequence(label, self._label_separator, printer, *args)
 
     #-------------------------------------------------------------------------
