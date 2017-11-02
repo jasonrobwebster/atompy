@@ -9,7 +9,8 @@ from atompy.core import (AtomicState, DoubleBar, SphericalTensor, Dagger,
 
 __all__ = [
     'transition_strength',
-    'weak_zeeman'
+    'weak_zeeman',
+    'lindblad_superop'
 ]
 
 
@@ -212,7 +213,8 @@ def lindblad_superop(operator, rho):
     op = operator #for brevity
     op_dagger = Dagger(op)
 
-    assert isinstance((op, op_dagger), OuterProduct)
+    assert isinstance(op, OuterProduct)
+    assert isinstance(op_dagger, OuterProduct)
 
     # The reason for the op.ket*op.bra seen below is because qapply
     # doesn't work with two operators, so to get the desired behaviour
@@ -221,11 +223,15 @@ def lindblad_superop(operator, rho):
 
     # Because of the above, we need to act on each element of rho
     # unless it's already an outerproduct
+
+    # TODO: Investigate a fix for this
+    # May be able to create a class for rho that extends a hermitian op
+    # Which will then have the proper functionality applied to it
     out = 0
     if isinstance(rho, OuterProduct):
         out += qapply(op * rho * op_dagger.ket*op_dagger.bra)
         out -= S.One/2 * qapply(op_dagger*op*rho.ket*rho.bra + rho * op_dagger * op.ket*op.bra)
-    else:
+    elif isinstance(rho, (Add, Mul)):
         if isinstance(rho, Mul):
             coeff, var = rho.args
             if isinstance(coeff, OuterProduct):
