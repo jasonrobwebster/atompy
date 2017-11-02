@@ -14,6 +14,6 @@ from sympy.physics.quantum.hilbert import *
 c, e0, u0 = symbols('c, e0, u0')
 
 # import self
-from .atom import *
+from .atomicstate import *
 from .doublebar import *
 from .tensor import *

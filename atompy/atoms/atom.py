@@ -1,63 +1,23 @@
-"""Atomic class handling."""
+"""Base Atomic class handling."""
 
 from __future__ import print_function
 
 from sympy.core.compatibility import range
 from sympy.matrices import zeros
-from . import sympify, Abs, sqrt, S, clebsch_gordan, wigner_6j, m_values
-from .tensor import SphericalTensor
-from .doublebar import DoubleBar
+from atompy.core import sympify, Abs, sqrt, S, clebsch_gordan, wigner_6j, m_values
+from atompy.core import AtomicState, DoubleBar, SphericalTensor
 from atompy.multilevel import AtomicJzKet
 from atompy.functions import weak_zeeman
 
 __all__ = [
-    'AtomicState',
     'Atom'
 ]
 
 
 #-----------------------------------------------------------------------------
-# Helper Classes and Functions
+# Helper Functions
 #-----------------------------------------------------------------------------
 
-
-class AtomicState():
-    """Defines an atomic energy level.
-
-    Parameters
-    ==========
-
-    E : Number, Symbol
-        The energy eignestate of the atomic level.
-
-    level_ket : AtomicJzKet, JzKet
-        The atomic ket |n, s, l, j, m_j> that defines the level.
-
-    label : String
-        A label for this level.
-
-    atomic_label : String, Optional
-        The corresponding atomic label n^(2s+1)L_J.
-    """
-
-    def __init__(self, E, ket, label, atomic_label=None):
-        # We're assuming that all error handling
-        # has been done outside this class.
-        self.E = E
-        self.ket = ket
-        self.label = label
-        # TODO: bring the label and atomic_label functionality here.
-        self.atomic_label = atomic_label
-
-    def __repr__(self, sep='  '):
-        out = 'label={0}' + sep + 'atomic_label={1}' + sep + 'energy={2}' + sep + 'ket=' + str({3})
-        out = out.format(
-            self.label,
-            self.atomic_label,
-            self.E,
-            self.ket
-        )
-        return out
 
 def f_values(J, I):
     """Calculates how many F values exist between F=Abs(J-I) to F=J+I"""
@@ -95,8 +55,8 @@ class Atom():
     mass : Number, Symbol
         The mass of the atom.
 
-    mag_field : Number, Symbol
-        The magnetic field that the atom is exposed to.
+    b : Number, Symbol
+        The magnetic field that the atom is subjected to.
 
     isotope : Int, Symbol
         The isotope number of the atom.
@@ -143,8 +103,8 @@ class Atom():
         return self.kwargs.get('mass')
 
     @property
-    def mag_field(self):
-        return self.kwargs.get('mag_field', S.Zero)
+    def b(self):
+        return self.kwargs.get('b', S.Zero)
 
     @property
     def isotope(self):

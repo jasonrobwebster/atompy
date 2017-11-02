@@ -2,7 +2,8 @@
 
 from __future__ import print_function
 
-from atompy.core import clebsch_gordan, sqrt, wigner_6j, sympify, S
+from atompy.core import (AtomicState, DoubleBar, SphericalTensor,
+                         clebsch_gordan, sqrt, wigner_6j, sympify, S)
 
 
 __all__ = [
@@ -23,10 +24,10 @@ def transition_strength(ground_state, excited_state, tensor, decouple=True):
     Parameters
     ==========
 
-    g_state : AtomicLevel
+    g_state : Atomiclevel
         The ground atomic state.
 
-    e_state : AtomicLevel
+    e_state : Atomiclevel
         The excited atomic state.
 
     tensor : SphericalTensor
@@ -76,22 +77,22 @@ def transition_strength(ground_state, excited_state, tensor, decouple=True):
     from atompy.core import AtomicState, SphericalTensor
 
     # assume our states are atomic states
-    #assert isinstance(ground_state, AtomicState)
-    #assert isinstance(excited_state, AtomicState)
-    #assert isinstance(tensor, SphericalTensor)
+    assert isinstance(ground_state, AtomicState)
+    assert isinstance(excited_state, AtomicState)
+    assert isinstance(tensor, SphericalTensor)
 
     # get the ground and excited kets and their useful values.
     g_ket = ground_state.ket
     e_ket = excited_state.ket
 
-    Fg = g_ket.f
-    Fe = e_ket.f
-    Jg = g_ket.j
-    Je = e_ket.j
-    Lg = g_ket.l
-    Le = e_ket.l
-    Sg = g_ket.s
-    Se = e_ket.s
+    fg = g_ket.f
+    fe = e_ket.f
+    jg = g_ket.j
+    je = e_ket.j
+    lg = g_ket.l
+    le = e_ket.l
+    sg = g_ket.s
+    se = e_ket.s
     m_g = g_ket.m
     m_e = e_ket.m
     i_g = g_ket.i
@@ -110,17 +111,19 @@ def transition_strength(ground_state, excited_state, tensor, decouple=True):
     gamma = sympify(gamma)
 
     # Give the result
-    result = (-1)**(Fe-Fg+m_g-m_e) * sqrt((2*Fg+1) / (2*Fe+1))
-    result *= clebsch_gordan(Fg, k, Fe, m_g, -q, m_e)
+    result = (-1)**(fe-fg+m_g-m_e) * sqrt((2*fg+1) / (2*fe+1))
+    result *= clebsch_gordan(fg, k, fe, m_g, -q, m_e)
+    dbl_bar = DoubleBar(fg, fe, E_diff, gamma)
     if decouple:
         # decouple to <J||..||J'>
-        result *= (-1)**(Fe+Jg+1+I) * sqrt((2*Fe+1)*(2*Jg+1))
-        result *= wigner_6j(Jg, Je, 1, Fe, Fg, I)
+        result *= (-1)**(fe+jg+1+I) * sqrt((2*fe+1)*(2*jg+1))
+        result *= wigner_6j(jg, je, 1, fe, fg, I)
         # decouple to <L||..||L'>
-        result *= (-1)**(Je+Lg+1+Sg) * sqrt((2*Je+1)*(2*Lg+1))
-        result *= wigner_6j(Lg, Le, 1, Je, Jg, Sg)
+        result *= (-1)**(je+lg+1+sg) * sqrt((2*je+1)*(2*lg+1))
+        result *= wigner_6j(lg, le, 1, je, jg, sg)
+        dbl_bar = DoubleBar(lg, le, E_diff, gamma)
 
-    return result
+    return result * dbl_bar
 
 def weak_zeeman(ket, b, **kwargs):
     """Calculates the energy shift due to a weak magnetic field.
