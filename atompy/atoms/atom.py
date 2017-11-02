@@ -142,9 +142,9 @@ class Atom():
         return self._atomic_labels.copy()
 
     @property
-    def state(self):
+    def rho(self):
         """The atomic density matrix."""
-        return self._state
+        return self._rho
 
     @property
     def hamiltonian(self):
@@ -180,7 +180,7 @@ class Atom():
         self.kwargs = kwargs
         self._levels_list = [] # a list of the added levels
         self._levels = 0
-        self._state = 0
+        self._rho = 0
         self._hamiltonian = 0
 
     def __repr__(self):
@@ -394,7 +394,22 @@ class Atom():
         self._hamiltonian += E * level_op
 
         # add to the density matrix
-        
+        rho_label = 'rho_' + label + label
+        rho_label = sympify(rho_label)
+        self._rho += rho_label * level_op 
+        for state in self._levels_list:
+            # add upper part
+            old_ket = state.ket
+            old_label = state.label
+            rho_label = 'rho_' + label + old_label
+            rho_label = sympify(rho_label)
+            rho_op = old_ket * level_ket.dual
+            self._rho += rho_label * rho_op
+            # add lower part
+            rho_label = 'rho_' + old_label + label
+            rho_label = sympify(rho_label)
+            rho_op = level_ket * old_ket.dual
+            self._rho += rho_label * rho_op
 
         # add to the level
         new_level = AtomicState(E_level, level_ket, label, atomic_label)

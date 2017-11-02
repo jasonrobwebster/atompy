@@ -23,6 +23,21 @@ e = rb.add_m_sublevels(
     f = 2
 )
 
+S, D, SS, DD, SD, DS = ap.symbols('S, D, SS, DD, SD, DS')
+
+s_ket = ap.JzKet(0,0)
+d_ket = ap.JzKet(2,0)
+
+rho = DD * (d_ket * d_ket.dual)
+rho += DS * (d_ket * s_ket.dual)
+rho += SD * (s_ket * d_ket.dual)
+rho += SS * (s_ket * s_ket.dual)
+
+print(rho)
+
+t = ap.lindblad_superop(s_ket * d_ket.dual, rho)
+print(t)
+
 print(e)
 
 #t = ap.SphericalTensor(1, 0)
