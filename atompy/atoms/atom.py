@@ -4,8 +4,8 @@ from __future__ import print_function
 
 from sympy.core.compatibility import range
 from sympy.matrices import zeros
-from atompy.core import sympify, Abs, sqrt, S, clebsch_gordan, wigner_6j, m_values
-from atompy.core import AtomicState, DoubleBar, SphericalTensor
+from atompy.core import sympify, symbols, Abs, sqrt, S, clebsch_gordan, wigner_6j, m_values
+from atompy.core import AtomicState, DoubleBar, SphericalTensor, Function
 from atompy.multilevel import AtomicJzKet
 from atompy.functions import weak_zeeman
 
@@ -28,6 +28,8 @@ def f_values(J, I):
     if not size.is_Integer or size < 0:
         raise ValueError('size should be an integer, got J, I, size: %s, %s, %s' % (J, I, size))
     return size, [f for f in range(f_min, f_max + 1)]
+
+t = symbols('t')
 
 
 #-----------------------------------------------------------------------------
@@ -182,6 +184,7 @@ class Atom():
         self._levels = 0
         self._rho = 0
         self._hamiltonian = 0
+        self._rho_list = [] # a list tuples describing the added rho functions (rho_12, |1>, |2>)
 
     def __repr__(self):
         if self.name != '':
@@ -395,21 +398,24 @@ class Atom():
 
         # add to the density matrix
         rho_label = 'rho_' + label + label
-        rho_label = sympify(rho_label)
-        self._rho += rho_label * level_op 
+        rho_label = symbols(rho_label, cls=Function)
+        self._rho += rho_label(t) * level_op 
+        self._rho_list.append((rho_label(t), level_ket, level_ket))
         for state in self._levels_list:
             # add upper part
             old_ket = state.ket
             old_label = state.label
             rho_label = 'rho_' + label + old_label
-            rho_label = sympify(rho_label)
-            rho_op = old_ket * level_ket.dual
-            self._rho += rho_label * rho_op
+            rho_label = symbols(rho_label, cls=Function)
+            rho_op = level_ket * old_ket.dual
+            self._rho += rho_label(t) * rho_op
+            self._rho_list.append((rho_label(t), level_ket, old_ket))
             # add lower part
             rho_label = 'rho_' + old_label + label
-            rho_label = sympify(rho_label)
-            rho_op = level_ket * old_ket.dual
-            self._rho += rho_label * rho_op
+            rho_label = symbols(rho_label, cls=Function)
+            rho_op = old_ket * level_ket.dual
+            self._rho += rho_label(t) * rho_op
+            self._rho_list.append((rho_label(t), old_ket, level_ket))
 
         # add to the level
         new_level = AtomicState(E_level, level_ket, label, atomic_label)
@@ -534,7 +540,59 @@ class Atom():
             out.append(state)
 
         return out
+
+    def atomic_field(self, rank, pol):
+        """Returns the hamiltonian due to atomic field interactions.
+        Equations are derived from [1].
+
+        Parameters
+        ==========
+
+        rank : Number
+            The rank of light driving the atomic transition.
+
+        pol : Number
+            The polarization of light driving the atomic transition.
+
+        References
+        ==========
         
+        .. [1] Steck, D.A., 2007. Quantum and atom optics. p. 360-375
+        http://atomoptics-nas.uoregon.edu/~dsteck/teaching/quantum-optics/quantum-optics-notes.pdf
+        """
+        
+        k = rank
+        q = -pol #flips due to convention in steck
+
+        
+
+    def master_equation(self, rank, pol, steady=False):
+        """Returns a system of equations derived from the master equation [1].
+
+        Parameters
+        ==========
+
+        rank : Number
+            The rank of light that is driving atomic transitions.
+
+        pol : Number,
+            The polarization of light that is driving atomic transitions.
+
+        steady : Boolean, Optional
+            Whether the returned master equations should be the steady state master equations.
+            Defaults to False.Abs
+
+        References
+        ==========
+
+        .. [1] Steck, D.A., 2007. Quantum and atom optics. p. 375
+        http://atomoptics-nas.uoregon.edu/~dsteck/teaching/quantum-optics/quantum-optics-notes.pdf
+        """
+
+        # for brevity
+        h = self._hamiltonian
+
+
 
     # TODO: Add method to calculate spin orbit coupling
     # TODO: Add support for adding all j and m_j sublevels for a given L and S
