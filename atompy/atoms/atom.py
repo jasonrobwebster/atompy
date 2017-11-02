@@ -276,6 +276,10 @@ class Atom():
         """
         # TODO: Make examples
 
+        # TODO: Rework the input? 
+        # Make it so that we don't assume the user knows nothing
+        # of sympy. Allow them to input coupled or decoupled states.
+
         # TODO: Create automatic labels for 'E'
         E = sympify(energy)
         n = sympify(n)
@@ -339,7 +343,7 @@ class Atom():
             level_ket = AtomicJzKet(n, f, m, (s, l, i), [(1, 2, j), (1, 3, f)])
 
         # calculate the energy shift due to a weak magnetic field
-        E_shift = weak_zeeman(level_ket, self.mag_field, **kwargs)
+        E_shift = weak_zeeman(level_ket, self.b, **kwargs)
         E_level = E + E_shift
 
         # get the label necessary for the atomic label

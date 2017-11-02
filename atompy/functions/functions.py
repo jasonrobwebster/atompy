@@ -35,7 +35,7 @@ def transition_strength(ground_state, excited_state, tensor, decouple=True):
         and polarization of light.
 
     decouple : Boolean, Optional
-        Whether to decouple the resulting <F||tensor||F'> to <L||tensor||L'>. 
+        Whether to decouple the resulting <F||tensor||F'> to <J||tensor||J'>. 
         Defaults to True.
 
     Examples
@@ -119,9 +119,9 @@ def transition_strength(ground_state, excited_state, tensor, decouple=True):
         result *= (-1)**(fe+jg+1+I) * sqrt((2*fe+1)*(2*jg+1))
         result *= wigner_6j(jg, je, 1, fe, fg, I)
         # decouple to <L||..||L'>
-        result *= (-1)**(je+lg+1+sg) * sqrt((2*je+1)*(2*lg+1))
-        result *= wigner_6j(lg, le, 1, je, jg, sg)
-        dbl_bar = DoubleBar(lg, le, E_diff, gamma)
+        #result *= (-1)**(je+lg+1+sg) * sqrt((2*je+1)*(2*lg+1))
+        #result *= wigner_6j(lg, le, 1, je, jg, sg)
+        dbl_bar = DoubleBar(jg, je, E_diff, gamma)
 
     return result * dbl_bar
 
@@ -188,3 +188,5 @@ def weak_zeeman(ket, b, **kwargs):
         if f == 0:
             g_f = 0
         return mu_b * g_f * ket.m * b
+
+

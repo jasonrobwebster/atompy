@@ -33,6 +33,7 @@ class AtomicState():
         self.atomic_label = atomic_label
 
     def __repr__(self, sep='  '):
+        # TODO: Think of a better repr method
         out = 'label={0}' + sep + 'atomic_label={1}' + sep + 'energy={2}' + sep + 'ket=' + str({3})
         out = out.format(
             self.label,
