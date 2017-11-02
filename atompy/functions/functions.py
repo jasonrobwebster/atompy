@@ -2,8 +2,9 @@
 
 from __future__ import print_function
 
-from atompy.core import (AtomicState, DoubleBar, SphericalTensor,
-                         clebsch_gordan, sqrt, wigner_6j, sympify, S)
+from atompy.core import (AtomicState, DoubleBar, SphericalTensor, Dagger,
+                         OuterProduct, Add, Mul, clebsch_gordan, sqrt,
+                         wigner_6j, sympify, S, qapply)
 
 
 __all__ = [
@@ -189,4 +190,58 @@ def weak_zeeman(ket, b, **kwargs):
             g_f = 0
         return mu_b * g_f * ket.m * b
 
+def lindblad_superop(operator, rho):
+    """Applies the Lindblad superoperator D[operator]rho operator from [1].
 
+    Parameters
+    ==========
+
+    operator : Operator, Symbol
+        The operator to apply to the density matrix.
+
+    rho : Add, Mul, Outerproduct
+        The density matrix of the atom to which to apply this operation to.
+
+    References
+    ==========
+
+    .. [1] Steck, D.A., 2007. Quantum and atom optics. p. 145
+        http://atomoptics-nas.uoregon.edu/~dsteck/teaching/quantum-optics/quantum-optics-notes.pdf
+    """
+
+    op = operator #for brevity
+    op_dagger = Dagger(op)
+
+    assert isinstance((op, op_dagger), OuterProduct)
+
+    # The reason for the op.ket*op.bra seen below is because qapply
+    # doesn't work with two operators, so to get the desired behaviour
+    # we need to force it to apply to the op's ket before multiplying in
+    # bra.
+
+    # Because of the above, we need to act on each element of rho
+    # unless it's already an outerproduct
+    out = 0
+    if isinstance(rho, OuterProduct):
+        out += qapply(op * rho * op_dagger.ket*op_dagger.bra)
+        out -= S.One/2 * qapply(op_dagger*op*rho.ket*rho.bra + rho * op_dagger * op.ket*op.bra)
+    else:
+        if isinstance(rho, Mul):
+            coeff, var = rho.args
+            if isinstance(coeff, OuterProduct):
+                out += var * lindblad_superop(op, coeff)
+            elif isinstance(var, OuterProduct):
+                out += coeff * lindblad_superop(op, var)
+            else:
+                raise ValueError('Given mul has too many arguments, got %s' % rho)
+        elif isinstance(rho, Add):
+            for arg in rho.args:
+                # these args should now be Muls, i.e.
+                # rho = rho_00|0><0| + rho_01|0><1| + ...
+                out += lindblad_superop(op, arg)
+    else:
+        raise ValueError(
+            'Rho should be of type Add, Mul or OuterProduct, got type %s' % type(rho).__name__
+        )
+
+    return out

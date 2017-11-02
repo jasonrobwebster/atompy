@@ -389,9 +389,12 @@ class Atom():
                 + 'Existing labels: %s, given: %s' % (self.labels, label)
                 )
 
-        # define the hamiltonian
+        # add to the hamiltonian
         level_op = level_ket * level_ket.dual
         self._hamiltonian += E * level_op
+
+        # add to the density matrix
+        
 
         # add to the level
         new_level = AtomicState(E_level, level_ket, label, atomic_label)
