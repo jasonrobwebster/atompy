@@ -16,7 +16,7 @@ __all__ = [
 
 # TODO: Extend these to functions to classes
 
-def transition_strength(ground_state, excited_state, tensor, decouple=True):
+def transition_strength(ground_state, excited_state, tensor, decouple_j=True, decouple_l=True):
     """Calculate the transition strengths between two atomic states [1], given by
     <ground_state|tensor|excited_state>.
 
@@ -36,8 +36,12 @@ def transition_strength(ground_state, excited_state, tensor, decouple=True):
         An instance of the SphericalTensor class that defines the rank
         and polarization of light.
 
-    decouple : Boolean, Optional
+    decouple_j : Boolean, Optional
         Whether to decouple the resulting <F||tensor||F'> to <J||tensor||J'>. 
+        Defaults to True.
+
+    decouple_j : Boolean, Optional
+        Whether to decouple the resulting <F||tensor||F'> to <L||tensor||L'>. 
         Defaults to True.
 
     Examples
@@ -116,14 +120,18 @@ def transition_strength(ground_state, excited_state, tensor, decouple=True):
     result = (-1)**(fe-fg+m_g-m_e) * sqrt((2*fg+1) / (2*fe+1))
     result *= clebsch_gordan(fg, k, fe, m_g, -q, m_e)
     dbl_bar = DoubleBar(fg, fe, E_diff, gamma)
-    if decouple:
+    
+    if decouple_j or decouple_l:
         # decouple to <J||..||J'>
         result *= (-1)**(fe+jg+1+I) * sqrt((2*fe+1)*(2*jg+1))
         result *= wigner_6j(jg, je, 1, fe, fg, I)
-        # decouple to <L||..||L'>
-        #result *= (-1)**(je+lg+1+sg) * sqrt((2*je+1)*(2*lg+1))
-        #result *= wigner_6j(lg, le, 1, je, jg, sg)
         dbl_bar = DoubleBar(jg, je, E_diff, gamma)
+    
+    if decouple_l:
+        # decouple to <L||..||L'>
+        result *= (-1)**(je+lg+1+sg) * sqrt((2*je+1)*(2*lg+1))
+        result *= wigner_6j(lg, le, 1, je, jg, sg)
+        dbl_bar = DoubleBar(lg, le, E_diff, gamma)
 
     return result * dbl_bar
 
