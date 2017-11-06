@@ -5,9 +5,9 @@ from __future__ import print_function
 from sympy.core.compatibility import range
 from sympy.matrices import zeros
 from atompy.core import sympify, symbols, Abs, sqrt, S, clebsch_gordan, wigner_6j, m_values
-from atompy.core import AtomicState, DoubleBar, SphericalTensor, Function
+from atompy.core import AtomicState, DoubleBar, SphericalTensor, Function, Sum, Add, Mul, CG, Dummy
 from atompy.multilevel import AtomicJzKet
-from atompy.functions import weak_zeeman
+from atompy.functions import weak_zeeman, transition_strength
 
 __all__ = [
     'Atom'
@@ -541,42 +541,111 @@ class Atom():
 
         return out
 
-    def atomic_field(self, rank, pol):
+    def interaction_field(self, dipole, light_field, **kwargs):
         """Returns the hamiltonian due to atomic field interactions.
-        Equations are derived from [1].
+        Returns the expecation value of -d.E between all ground and excited states.
+        Equations are derived from [1] and [2].
 
         Parameters
         ==========
 
-        rank : Number
-            The rank of light driving the atomic transition.
+        dipole: SphericalTensor
+            Represents the dipole operator d. Can also be an instance of add.
 
-        pol : Number
-            The polarization of light driving the atomic transition.
+        light_field: SphericalTensor
+            A spherical tensor representitive of the light field.
+            Typically something like T^(0)_0 for a plane wave, or
+            T^(1)_1 for light with a OAM [2].
+
+
+        Passes kwargs to transition_strength, see transition_strength for more details.
 
         References
         ==========
         
         .. [1] Steck, D.A., 2007. Quantum and atom optics. p. 360-375
-        http://atomoptics-nas.uoregon.edu/~dsteck/teaching/quantum-optics/quantum-optics-notes.pdf
+            http://atomoptics-nas.uoregon.edu/~dsteck/teaching/quantum-optics/quantum-optics-notes.pdf
+
+        .. [2] Schmiegelow, C.T. and Schmidt-Kaler, F., 2012. 
+            Light with orbital angular momentum interacting with trapped ions.
         """
         
-        k = rank
-        q = -pol #flips due to convention in steck
+        # TODO: Build a more robust way to build the interaction hamiltonian
+        # Specifically, follow the paper [2] by Schimdt-Kaler.
+        # For now just interact directly with one spherical tensor.
 
+        # TODO: Add support for d, E as vectors.
+
+        # TODO: Fix janky way of handling Add and Mul classes 
+        out = 0
         
+        if isinstance(light_field, Add):
+            for arg in light_field.args:
+                out += self.interaction_field(dipole, arg)
 
-    def master_equation(self, rank, pol, steady=False):
+        if isinstance(light_field, Mul):
+            coeff, field = light_field.args
+            assert isinstance(coeff, SphericalTensor) is False
+            out += coeff * self.interaction_field(dipole, light_field)
+
+        if isinstance(dipole, Add):
+            for arg in dipole.args:
+                out += self.interaction_field(arg, light_field)
+
+        if isinstance(dipole, Mul):
+            coeff, dip = dipole.args
+            assert isinstance(coeff, SphericalTensor) is False
+            out += coeff * self.interaction_field(dip, light_field)
+        
+        assert isinstance(light_field, SphericalTensor)
+        assert isinstance(dipole, SphericalTensor)
+
+        # Do A1 in [2]
+        k1 = dipole.k
+        m1 = dipole.q
+        k2 = light_field.k
+        m2 = light_field.q
+
+        if k1.is_number and k2.is_number and m1.is_number and m2.is_number:
+            couple_tensor = 0
+            for k in range(-abs(k1-k2), k1+k2+1):
+                for m in range(-k, k+1):
+                    couple_tensor += clebsch_gordan(k1, m1, k2, m2, k, m)*SphericalTensor(k, m)
+        else:
+            k, m = Dummy('k, m')
+            couple_tensor = Sum(CG(k1, m1, k2, m2, k, m)*SphericalTensor(k, m), (k, abs(k1-k2), k1+k2), (q, -k, k))
+        
+        # gives H_AF=-d.E = -(One) * d.E * (One) where One=sum(|n><n|) for all n, j, k, etc
+        # this will work out to |g><g|tensor|e><e| + |e><e|tensor|g><g| + other levels
+        # but <e|tensor|g> = (-1)^(e.f-g.f)*sqrt((2*g.f+1/2)/(2*e.f+1))*Dagger(<g|tensor|e>) - (7.250) of [1]
+        # and we take <g|tensor|e> to be real
+        for ground_state in self._levels_list:
+            E_g = ground_state.E
+            for excited_state in self._levels_list:
+                E_e = excited_state.E
+                if E_e <= E_g:
+                    break
+                af_ket = ground_state.ket * excited_state.dual
+                af_ket_dual = excited_state.dual * ground_state.ket
+                g_f = ground_state.f
+                e_f = excited_state.f
+                result = transition_strength(ground_state, excited_state, couple_tensor, **kwargs)
+                result *= (af_ket + (-1)**(e_f-g_f) * sqrt((2*g_f+1)/(2*e_f+1)) * af_ket_dual)
+                out += -result #sign is from -d.E
+
+        return out
+
+    def master_equation(self, pol, light_field, steady=False, **kwargs):
         """Returns a system of equations derived from the master equation [1].
 
         Parameters
         ==========
 
-        rank : Number
-            The rank of light that is driving atomic transitions.
+        pol : Number
+            The polarization of light that is driving atomic transitions. Either -1, 0, or 1.
 
-        pol : Number,
-            The polarization of light that is driving atomic transitions.
+        light_field: SphericalTensor
+            A spherical tensor, or addition of spherical tensors, that describe a light field.
 
         steady : Boolean, Optional
             Whether the returned master equations should be the steady state master equations.
@@ -590,10 +659,14 @@ class Atom():
         """
 
         # for brevity
-        h = self._hamiltonian
+        # TODO: Make dipole a vector that can dot into the light_field
+
+        dipole = SphericalTensor(1, -pol)
+        h = self._hamiltonian + self.interaction_field(dipole, light_field, **kwargs)
 
 
 
     # TODO: Add method to calculate spin orbit coupling
     # TODO: Add support for adding all j and m_j sublevels for a given L and S
     # TODO: Add a method to calculate hyperfine splitting
+    # TODO: Add a way to decompose an arbitraryily defined function into spherical tensor components.
