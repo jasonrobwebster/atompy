@@ -80,7 +80,20 @@ def transition_strength(ground_state, excited_state, tensor, decouple_j=True, de
     .. [1] Steck, D.A., 2007. Quantum and atom optics. p. 336
         http://atomoptics-nas.uoregon.edu/~dsteck/teaching/quantum-optics/quantum-optics-notes.pdf
     """
-    from atompy.core import AtomicState, SphericalTensor
+
+    # janky way of accounting for additions and multiplications
+    # TODO: Fix the jankiness, make it more sympy like.
+    out = 0
+
+    if isinstance(tensor, Add):
+        for arg in tensor.args:
+            out += transition_strength(ground_state, arg, tensor)
+
+    if isinstance(tensor, Mul):
+        coeff, tens = tensor.args
+        assert isinstance(coeff, SphericalHarmonic) is False
+        out += transition_strength(ground_state, tens, excited_state)
+    
 
     # assume our states are atomic states
     assert isinstance(ground_state, AtomicState)
@@ -132,8 +145,10 @@ def transition_strength(ground_state, excited_state, tensor, decouple_j=True, de
         result *= (-1)**(je+lg+1+sg) * sqrt((2*je+1)*(2*lg+1))
         result *= wigner_6j(lg, le, 1, je, jg, sg)
         dbl_bar = DoubleBar(lg, le, E_diff, gamma)
+    
+    out += result * dbl_bar
 
-    return result * dbl_bar
+    return out
 
 def weak_zeeman(ket, b, **kwargs):
     """Calculates the energy shift due to a weak magnetic field.
