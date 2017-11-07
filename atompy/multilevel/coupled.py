@@ -275,9 +275,9 @@ class AtomSpinState(CoupledSpinState):
                 label.append(
                     'j=%s' % printer._print(self.j)
                 )
-                label.append(
-                    'i=%s' % printer._print(ji)
-                )
+                #label.append(
+                #    'i=%s' % printer._print(ji)
+                #)
         return ', '.join(label)
 
     def _print_label_pretty(self, printer, *args):
@@ -294,13 +294,19 @@ class AtomSpinState(CoupledSpinState):
         for i, ji in enumerate(self.jn):
             if i == 0:
                 symb = 's'
+                symb = pretty_symbol(symb)
+                symb = prettyForm(symb + '=')
+                item = prettyForm(*symb.right(printer._print(ji)))
             elif i == 1:
                 symb = 'l'
+                symb = pretty_symbol(symb)
+                symb = prettyForm(symb + '=')
+                item = prettyForm(*symb.right(printer._print(ji)))
             elif i == 2:
-                symb = 'i'
-            symb = pretty_symbol(symb)
-            symb = prettyForm(symb + '=')
-            item = prettyForm(*symb.right(printer._print(ji)))
+                symb = 'j'
+                symb = pretty_symbol(symb)
+                symb = prettyForm(symb + '=')
+                item = prettyForm(*symb.right(printer._print(self.j)))
             label.append(item)
         return self._print_sequence_pretty(label, self._label_separator, printer, *args)
 

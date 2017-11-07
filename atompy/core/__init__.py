@@ -1,7 +1,7 @@
 """Init"""
 
 # import sympy at the core level
-from sympy import sympify, symbols
+from sympy import sympify, symbols, Eq, I, Function
 from sympy.core import Add, Mul, S
 from sympy.printing import *
 from sympy.concrete import *
