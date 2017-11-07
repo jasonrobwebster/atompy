@@ -3,7 +3,8 @@
 from . import Operator, sympify
 
 __all__=[
-    'SphericalTensor'
+    'SphericalTensor',
+    'couple_tensor'
 ]
 
 class SphericalTensor(Operator):
@@ -58,3 +59,52 @@ class SphericalTensor(Operator):
     @property
     def q(self):
         return self.args[1]
+
+def couple_tensor(a, b):
+    """Couples two spherical tensors together to create a third tensor.
+    Equation derived from [1]
+
+    Parameters
+    ==========
+
+    a, b: SphericalTensors
+        The spherical tensors that will be coupled.
+
+    return_q : Boolean, Optional
+        Whether to return the q_vals with the associated tensor sum.
+
+    Examples
+    ========
+
+    References
+    ==========
+
+    .. [1] Steck, D.A., 2007. Quantum and atom optics. p. 360-375
+        http://atomoptics-nas.uoregon.edu/~dsteck/teaching/quantum-optics/quantum-optics-notes.pdf
+    """
+
+    # TODO: Get spherical tensors to couple using the TensorProduct function.
+    # Similar to how JzKets can coupled using the TensorProduct function along
+    # with the couple function.
+    from . import CG, clebsch_gordan
+
+    assert isinstance(a, SphericalTensor)
+    assert isinstance(b, SphericalTensor)
+
+    # Do A1 in [2]
+    k1 = b.k
+    m1 = b.q
+    k2 = a.k
+    m2 = a.q
+
+    if k1.is_number and k2.is_number and m1.is_number and m2.is_number:
+        couple_tensor = 0
+        for k in range(-abs(k1-k2), k1+k2+1):
+            for m in range(-k, k+1):
+                couple_tensor += clebsch_gordan(k1, k2, k, m1, m2, m)*SphericalTensor(k, m)
+    else:
+        k, m = Dummy('k, m')
+        couple_tensor = Sum(CG(k1 ,k2, k, m1, m2, m)*SphericalTensor(k, m), (k, abs(k1-k2), k1+k2), (q, -k, k))
+
+    return couple_tensor
+        

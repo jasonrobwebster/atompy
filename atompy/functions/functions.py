@@ -3,14 +3,15 @@
 from __future__ import print_function
 
 from atompy.core import (AtomicState, DoubleBar, SphericalTensor, Dagger,
-                         OuterProduct, Add, Mul, clebsch_gordan, sqrt,
-                         wigner_6j, sympify, S, qapply)
+                         OuterProduct, Operator, Add, Mul, clebsch_gordan, sqrt,
+                         wigner_6j, sympify, S, qapply, hbar)
 
 
 __all__ = [
     'transition_strength',
     'weak_zeeman',
-    'lindblad_superop'
+    'lindblad_superop',
+    'operator_commutator'
 ]
 
 
@@ -88,22 +89,23 @@ def transition_strength(ground_state, excited_state, tensor, decouple_j=True, de
     if isinstance(tensor, Add):
         for arg in tensor.args:
             out += transition_strength(ground_state, arg, tensor)
-
-    if isinstance(tensor, Mul):
+    elif isinstance(tensor, Mul):
         coeff, tens = tensor.args
         assert isinstance(coeff, SphericalHarmonic) is False
         out += transition_strength(ground_state, tens, excited_state)
+    elif not isinstance(tensor, SphericalTensor):
+        raise ValueError('tensor must be a spherical tensor, got %s' %tensor)
     
 
     # assume our states are atomic states
     assert isinstance(ground_state, AtomicState)
     assert isinstance(excited_state, AtomicState)
-    assert isinstance(tensor, SphericalTensor)
 
     # get the ground and excited kets and their useful values.
     g_ket = ground_state.ket
     e_ket = excited_state.ket
 
+    e_g, e_e = ground_state.E, excited_state.E
     fg = g_ket.f
     fe = e_ket.f
     jg = g_ket.j
@@ -126,25 +128,27 @@ def transition_strength(ground_state, excited_state, tensor, decouple_j=True, de
     # label the gamma symbol
     label_g = ground_state.label
     label_e = excited_state.label
-    gamma = 'Gamma' + label_g  + label_e
+    gamma = 'Gamma_%s%s' %(label_g, label_e)
     gamma = sympify(gamma)
+    w0 = (e_e - e_g)/hbar
 
     # Give the result
     result = (-1)**(fe-fg+m_g-m_e) * sqrt((2*fg+1) / (2*fe+1))
     result *= clebsch_gordan(fg, k, fe, m_g, -q, m_e)
-    dbl_bar = DoubleBar(fg, fe, E_diff, gamma)
+    dbl_bar = DoubleBar(fg, fe, w0, gamma)
     
     if decouple_j or decouple_l:
+        w0 = sympify('omega_%s%s' %(label_g, label_e))
         # decouple to <J||..||J'>
         result *= (-1)**(fe+jg+1+I) * sqrt((2*fe+1)*(2*jg+1))
         result *= wigner_6j(jg, je, 1, fe, fg, I)
-        dbl_bar = DoubleBar(jg, je, E_diff, gamma)
+        dbl_bar = DoubleBar(jg, je, w0, gamma)
     
     if decouple_l:
         # decouple to <L||..||L'>
         result *= (-1)**(je+lg+1+sg) * sqrt((2*je+1)*(2*lg+1))
         result *= wigner_6j(lg, le, 1, je, jg, sg)
-        dbl_bar = DoubleBar(lg, le, E_diff, gamma)
+        dbl_bar = DoubleBar(lg, le, w0, gamma)
     
     out += result * dbl_bar
 
@@ -274,3 +278,55 @@ def lindblad_superop(operator, rho):
         )
 
     return out
+
+def operator_qapply(a,b):
+    """Calculates qapply(a*b) properly.
+    Currently if a=|e><g| and b=|g><e|, then the native sympy qapply does
+    not produce the correct answer qapply(a*b)!=|e><e|. Likely something wrong
+    with the way that qapply handles OuterProducts.
+
+    This function overcomes this problem.
+    """
+
+    out = 0
+
+    # TODO: Fix janky handling, perhaps add a .doit method
+    if isinstance(b, Add):
+        for arg in b.args:
+            out += operator_qapply(a, arg)
+    elif isinstance(b, Mul):
+        result = 1
+        args = b.args
+        try:
+            result *= Mul(*args[1:]) * operator_qapply(a, args[0])
+        except ValueError:
+            result *= args[0] * operator_qapply(a, Mul(*args[1:]))
+        out += result
+    elif not isinstance(b, Operator):
+        raise ValueError('b is not an operator, got %s' %b)
+
+    if not isinstance(b, OuterProduct):
+        return qapply(a * b)
+
+    out += qapply(a* b.ket * b.bra)
+
+    return out
+
+def operator_commutator(a, b):
+    """Calculates the commutator for two operators a and b as [a,b].
+    Attempts to overcome a janky bug in qapply where |g><e| * |e><g| != |g><g|.
+
+    Parameters
+    ==========
+
+    a : Operator
+        An Operator. Can also be a sum of operators.
+
+    b : Operator
+        An Operator. Can also be a sum of operators.
+    """
+
+    # TODO: Rename function
+    # TODO: Make a function that just does qapply(a*b) properly
+
+    return operator_qapply(a, b) - operator_qapply(b, a)
