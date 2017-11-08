@@ -92,11 +92,18 @@ def transition_strength(ground_state, excited_state, tensor, flip_q=False, decou
 
     if isinstance(tensor, Add):
         for arg in tensor.args:
-            out += transition_strength(ground_state, arg, tensor)
+            out += transition_strength(ground_state, excited_state, arg)
+        return out
     elif isinstance(tensor, Mul):
-        coeff, tens = tensor.args
-        assert isinstance(coeff, SphericalHarmonic) is False
-        out += transition_strength(ground_state, tens, excited_state)
+        args = tensor.args
+        try:
+            out += transition_strength(ground_state, excited_state, args[0]) * Mul(*args[1:])
+        except ValueError:
+            if len(args) > 2:
+                out += transition_strength(ground_state, excited_state, Mul(*args[1:])) * args[0]
+            else:
+                out += transition_strength(ground_state, excited_state, args[1]) * args[0]
+        return out
     elif not isinstance(tensor, SphericalTensor):
         raise ValueError('tensor must be a spherical tensor, got %s' %tensor)
     

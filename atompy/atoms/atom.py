@@ -613,10 +613,11 @@ class Atom():
                 if E_e > E_g:
                     g_ket = ground_state.ket
                     e_ket = excited_state.ket
+                    q = g_ket.m - e_ket.m
                     af_op =  g_ket * e_ket.dual
                     af_op_dual = e_ket * g_ket.dual
                     result = transition_strength(ground_state, excited_state, tensor, **kwargs)
-                    result *= (af_op + af_op_dual)
+                    result *= (af_op + (-1)**q * af_op_dual)
                     out += -result #sign is from -d.E
                     
         return out
@@ -658,13 +659,12 @@ class Atom():
             E_g = ground_state.E
             for excited_state in self._levels_list:
                 E_e = excited_state.E
-                if E_e <= E_g:
-                    break
-                lower_op = ground_state.ket * excited_state.ket.dual
-                g_label = ground_state.label
-                e_label = excited_state.label
-                gamma = sympify('Gamma_%s%s' %(g_label, e_label))
-                result += gamma * lindblad_superop(lower_op, self.rho)
+                if E_e > E_g:
+                    lower_op = ground_state.ket * excited_state.ket.dual
+                    g_label = ground_state.label
+                    e_label = excited_state.label
+                    gamma = sympify('Gamma_%s%s' %(g_label, e_label))
+                    result += gamma * lindblad_superop(lower_op, self.rho)
 
         # return a system of equations
         sys = []
