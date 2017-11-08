@@ -17,7 +17,7 @@ __all__ = [
 
 # TODO: Extend these to functions to classes
 
-def transition_strength(ground_state, excited_state, tensor, decouple_j=True, decouple_l=True):
+def transition_strength(ground_state, excited_state, tensor, flip_q=False, decouple_j=True, decouple_l=True):
     """Calculate the transition strengths between two atomic states [1], given by
     <ground_state|tensor|excited_state>.
 
@@ -36,6 +36,10 @@ def transition_strength(ground_state, excited_state, tensor, decouple_j=True, de
     tensor : SphericalTensor
         An instance of the SphericalTensor class that defines the rank
         and polarization of light.
+
+    flip_q : Boolean, Optional
+        Whether the output's sign should be flipped based on the value of tensor.q.
+        Useful when you're working from the daggered result.
 
     decouple_j : Boolean, Optional
         Whether to decouple the resulting <F||tensor||F'> to <J||tensor||J'>. 
