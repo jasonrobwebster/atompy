@@ -1,63 +1,24 @@
-"""Atomic class handling."""
+"""Base Atomic class handling."""
 
 from __future__ import print_function
 
 from sympy.core.compatibility import range
-from sympy.matrices import zeros
-from . import sympify, Abs, sqrt, S, clebsch_gordan, wigner_6j, m_values
-from .tensor import SphericalTensor
-from .doublebar import DoubleBar
+from atompy.core import (sympify, symbols, Abs, sqrt, S, clebsch_gordan,
+                         wigner_6j, m_values, hbar, I, qapply, couple_tensor, 
+                         AtomicState, DoubleBar, SphericalTensor, Function, 
+                         Sum, Add, Mul, CG, Dummy, Eq)
 from atompy.multilevel import AtomicJzKet
-from atompy.functions import weak_zeeman
+from atompy.functions import weak_zeeman, transition_strength, operator_commutator, lindblad_superop
 
 __all__ = [
-    'AtomicState',
     'Atom'
 ]
 
 
 #-----------------------------------------------------------------------------
-# Helper Classes and Functions
+# Helper Functions
 #-----------------------------------------------------------------------------
 
-
-class AtomicState():
-    """Defines an atomic energy level.
-
-    Parameters
-    ==========
-
-    E : Number, Symbol
-        The energy eignestate of the atomic level.
-
-    level_ket : AtomicJzKet, JzKet
-        The atomic ket |n, s, l, j, m_j> that defines the level.
-
-    label : String
-        A label for this level.
-
-    atomic_label : String, Optional
-        The corresponding atomic label n^(2s+1)L_J.
-    """
-
-    def __init__(self, E, ket, label, atomic_label=None):
-        # We're assuming that all error handling
-        # has been done outside this class.
-        self.E = E
-        self.ket = ket
-        self.label = label
-        # TODO: bring the label and atomic_label functionality here.
-        self.atomic_label = atomic_label
-
-    def __repr__(self, sep='  '):
-        out = 'label={0}' + sep + 'atomic_label={1}' + sep + 'energy={2}' + sep + 'ket=' + str({3})
-        out = out.format(
-            self.label,
-            self.atomic_label,
-            self.E,
-            self.ket
-        )
-        return out
 
 def f_values(J, I):
     """Calculates how many F values exist between F=Abs(J-I) to F=J+I"""
@@ -68,6 +29,8 @@ def f_values(J, I):
     if not size.is_Integer or size < 0:
         raise ValueError('size should be an integer, got J, I, size: %s, %s, %s' % (J, I, size))
     return size, [f for f in range(f_min, f_max + 1)]
+
+t = symbols('t')
 
 
 #-----------------------------------------------------------------------------
@@ -84,7 +47,7 @@ class Atom():
     name : String
         The name of the atom (Rb, H, Hydrogen, etc).
 
-    I : Number, Symbol
+    spin : Number, Symbol
         The spin of the nucleus.
         Default is 0.
 
@@ -95,8 +58,8 @@ class Atom():
     mass : Number, Symbol
         The mass of the atom.
 
-    mag_field : Number, Symbol
-        The magnetic field that the atom is exposed to.
+    b : Number, Symbol
+        The magnetic field that the atom is subjected to.
 
     isotope : Int, Symbol
         The isotope number of the atom.
@@ -143,8 +106,8 @@ class Atom():
         return self.kwargs.get('mass')
 
     @property
-    def mag_field(self):
-        return self.kwargs.get('mag_field', S.Zero)
+    def b(self):
+        return self.kwargs.get('b', S.Zero)
 
     @property
     def isotope(self):
@@ -182,9 +145,9 @@ class Atom():
         return self._atomic_labels.copy()
 
     @property
-    def state(self):
+    def rho(self):
         """The atomic density matrix."""
-        return self._state
+        return self._rho
 
     @property
     def hamiltonian(self):
@@ -220,8 +183,9 @@ class Atom():
         self.kwargs = kwargs
         self._levels_list = [] # a list of the added levels
         self._levels = 0
-        self._state = 0
+        self._rho = 0
         self._hamiltonian = 0
+        self._rho_list = [] # a list tuples describing the added rho functions (rho_12, |1>, |2>)
 
     def __repr__(self):
         if self.name != '':
@@ -316,6 +280,10 @@ class Atom():
         """
         # TODO: Make examples
 
+        # TODO: Rework the input? 
+        # Make it so that we don't assume the user knows nothing
+        # of sympy. Allow them to input coupled or decoupled states.
+
         # TODO: Create automatic labels for 'E'
         E = sympify(energy)
         n = sympify(n)
@@ -379,7 +347,7 @@ class Atom():
             level_ket = AtomicJzKet(n, f, m, (s, l, i), [(1, 2, j), (1, 3, f)])
 
         # calculate the energy shift due to a weak magnetic field
-        E_shift = weak_zeeman(level_ket, self.mag_field, **kwargs)
+        E_shift = weak_zeeman(level_ket, self.b, **kwargs)
         E_level = E + E_shift
 
         # get the label necessary for the atomic label
@@ -425,9 +393,30 @@ class Atom():
                 + 'Existing labels: %s, given: %s' % (self.labels, label)
                 )
 
-        # define the hamiltonian
+        # add to the hamiltonian
         level_op = level_ket * level_ket.dual
         self._hamiltonian += E * level_op
+
+        # add to the density matrix
+        rho_label = 'rho_%s%s' %(label, label)
+        rho_label = Function(rho_label)
+        self._rho += rho_label(t) * level_op 
+        self._rho_list.append((rho_label(t), level_ket, level_ket))
+        for state in self._levels_list:
+            # add upper part
+            old_ket = state.ket
+            old_label = state.label
+            rho_label = 'rho_%s%s' %(label, old_label)
+            rho_label = Function(rho_label)
+            rho_op = level_ket * old_ket.dual
+            self._rho += rho_label(t) * rho_op
+            self._rho_list.append((rho_label(t), level_ket, old_ket))
+            # add lower part
+            rho_label = 'rho_%s%s' %(old_label, label)
+            rho_label = Function(rho_label)
+            rho_op = old_ket * level_ket.dual
+            self._rho += rho_label(t) * rho_op
+            self._rho_list.append((rho_label(t), old_ket, level_ket))
 
         # add to the level
         new_level = AtomicState(E_level, level_ket, label, atomic_label)
@@ -552,8 +541,161 @@ class Atom():
             out.append(state)
 
         return out
+
+    def interaction_field(self, dipole, light_field, **kwargs):
+        """Returns the hamiltonian due to atomic field interactions.
+        Returns the expecation value of -d.E between all ground and excited states.
+        Equations are derived from [1] and [2].
+
+        Parameters
+        ==========
+
+        dipole: SphericalTensor
+            Represents the dipole operator d. Can also be an instance of add.
+
+        light_field: SphericalTensor
+            A spherical tensor representitive of the light field.
+            Typically something like T^(0)_0 for a plane wave, or
+            T^(1)_1 for light with a OAM [2].
+
+
+        Passes kwargs to transition_strength, see transition_strength for more details.
+
+        References
+        ==========
         
+        .. [1] Steck, D.A., 2007. Quantum and atom optics. p. 360-375
+            http://atomoptics-nas.uoregon.edu/~dsteck/teaching/quantum-optics/quantum-optics-notes.pdf
+
+        .. [2] Schmiegelow, C.T. and Schmidt-Kaler, F., 2012. 
+            Light with orbital angular momentum interacting with trapped ions.
+        """
+        
+        # TODO: Build a more robust way to build the interaction hamiltonian
+        # Specifically, follow the paper [2] by Schimdt-Kaler.
+        # For now just interact directly with one spherical tensor.
+
+        # TODO: Add support for d, E as vectors.
+
+        # TODO: Fix janky way of handling Add and Mul classes 
+        out = 0
+        
+        if isinstance(light_field, Add):
+            for arg in light_field.args:
+                out += self.interaction_field(dipole, arg)
+
+        if isinstance(light_field, Mul):
+            coeff, field = light_field.args
+            assert isinstance(coeff, SphericalTensor) is False
+            out += coeff * self.interaction_field(dipole, light_field)
+
+        if isinstance(dipole, Add):
+            for arg in dipole.args:
+                out += self.interaction_field(arg, light_field)
+
+        if isinstance(dipole, Mul):
+            coeff, dip = dipole.args
+            assert isinstance(coeff, SphericalTensor) is False
+            out += coeff * self.interaction_field(dip, light_field)
+        
+        tensor = couple_tensor(light_field, dipole)
+
+        # gives H_AF=-d.E = -(One) * d.E * (One) where One=sum(|n, j, m><n, j, m|) for all n, j, m, etc
+        # Works out to |n, j, m><n, j, m|tensor|n', j', m'><n', j', m'| + c.c. for all the levels
+        # The c.c. is |n', j', m'><n', j', m'|tensor|n, j, m><n, j, m| but <n', j', m'|tensor|n, j, m>
+        # = <n', j'||tensor||n, j><j', m'|j, m; k, q> = (-1)^q<n, j||tensor||n',j'><j, m| j', m', k, q>
+        # and the function transition_strength(g, e, tensor) returns <n, j||tensor||n',j'><j, m| j', m', k, q>
+        for ground_state in self._levels_list:
+            E_g = ground_state.E
+            for excited_state in self._levels_list:
+                E_e = excited_state.E
+                if E_e > E_g:
+                    g_ket = ground_state.ket
+                    e_ket = excited_state.ket
+                    q = g_ket.m - e_ket.m
+                    af_op =  g_ket * e_ket.dual
+                    af_op_dual = e_ket * g_ket.dual
+
+                    result = transition_strength(ground_state,
+                                                 excited_state,
+                                                 tensor,
+                                                 **kwargs)
+                    result *= af_op
+
+                    result_dual = transition_strength(ground_state,
+                                                      excited_state,
+                                                      tensor,
+                                                      flip_q=True,
+                                                      **kwargs)
+                    result_dual *= (-1)**q * af_op_dual
+
+                    out += -(result + result_dual) #sign is from -d.E
+                    
+        return out
+
+    def master_equation(self, pol, light_field, steady=False, **kwargs):
+        """Returns a system of equations derived from the master equation [1].
+
+        Parameters
+        ==========
+
+        pol : Number
+            The polarization of light that is driving atomic transitions. Either -1, 0, or 1.
+
+        light_field: SphericalTensor
+            A spherical tensor, or addition of spherical tensors, that describe a light field.
+
+        steady : Boolean, Optional
+            Whether the returned master equations should be the steady state master equations.
+            Defaults to False.Abs
+
+        References
+        ==========
+
+        .. [1] Steck, D.A., 2007. Quantum and atom optics. p. 375
+        http://atomoptics-nas.uoregon.edu/~dsteck/teaching/quantum-optics/quantum-optics-notes.pdf
+        """
+
+        
+        # TODO: Make dipole a vector that can dot into the light_field
+
+        dipole = SphericalTensor(1, -pol)
+        # for brevity
+        h = self._hamiltonian + self.interaction_field(dipole, light_field, **kwargs)
+
+        result = -I/hbar * operator_commutator(h, self.rho)
+
+        # add the lindblad superops
+        for ground_state in self._levels_list:
+            E_g = ground_state.E
+            for excited_state in self._levels_list:
+                E_e = excited_state.E
+                if E_e > E_g:
+                    lower_op = ground_state.ket * excited_state.ket.dual
+                    g_label = ground_state.label
+                    e_label = excited_state.label
+                    gamma = sympify('Gamma_%s%s' %(g_label, e_label))
+                    result += gamma * lindblad_superop(lower_op, self.rho)
+
+        # return a system of equations
+        sys = []
+        for ground_state in self._levels_list:
+            for excited_state in self._levels_list:
+                g_label = ground_state.label
+                e_label = excited_state.label
+                rho = Function('rho_%s%s' %(g_label, e_label))
+                #take <g|result|e> to get d/dt rho_ge
+                rhs = qapply(result * excited_state.ket)
+                rhs = qapply(ground_state.ket.dual * rhs)
+                if steady:
+                    sys.append(Eq(0, rhs))
+                else:
+                    sys.append(Eq(rho(t).diff(t), rhs))
+        
+        return sys
+
 
     # TODO: Add method to calculate spin orbit coupling
     # TODO: Add support for adding all j and m_j sublevels for a given L and S
     # TODO: Add a method to calculate hyperfine splitting
+    # TODO: Add a way to decompose an arbitraryily defined function into spherical tensor components.

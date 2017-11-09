@@ -37,9 +37,8 @@ class DoubleBar(Function):
     nargs = 4
 
     @classmethod
-    def eval(cls, jg, je, energy, gamma):
+    def eval(cls, jg, je, w0, gamma):
         if gamma.is_number:
-            w0 = energy/hbar
             out = ((3 * pi * e0 * hbar * c**3) / (w0**3)) * ((2*je + 1) / (2*jg + 1)) * gamma
             out = sqrt(out)
             return out

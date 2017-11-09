@@ -7,5 +7,6 @@ from __future__ import print_function
 
 from sympy import init_printing
 from .core import *
+from .atoms import *
 from .multilevel import *
 from .functions import *
