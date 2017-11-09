@@ -1,6 +1,6 @@
 """Spherical tensor class"""
 
-from . import Operator, sympify
+from . import Operator, sympify, Dummy, CG, clebsch_gordan
 
 __all__=[
     'SphericalTensor',

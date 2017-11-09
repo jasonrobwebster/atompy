@@ -599,7 +599,6 @@ class Atom():
             out += coeff * self.interaction_field(dip, light_field)
         
         tensor = couple_tensor(light_field, dipole)
-        print(tensor)
 
         # gives H_AF=-d.E = -(One) * d.E * (One) where One=sum(|n, j, m><n, j, m|) for all n, j, m, etc
         # Works out to |n, j, m><n, j, m|tensor|n', j', m'><n', j', m'| + c.c. for all the levels
@@ -616,9 +615,21 @@ class Atom():
                     q = g_ket.m - e_ket.m
                     af_op =  g_ket * e_ket.dual
                     af_op_dual = e_ket * g_ket.dual
-                    result = transition_strength(ground_state, excited_state, tensor, **kwargs)
-                    result *= (af_op + (-1)**q * af_op_dual)
-                    out += -result #sign is from -d.E
+
+                    result = transition_strength(ground_state,
+                                                 excited_state,
+                                                 tensor,
+                                                 **kwargs)
+                    result *= af_op
+
+                    result_dual = transition_strength(ground_state,
+                                                      excited_state,
+                                                      tensor,
+                                                      flip_q=True,
+                                                      **kwargs)
+                    result_dual *= (-1)**q * af_op_dual
+
+                    out += -(result + result_dual) #sign is from -d.E
                     
         return out
 

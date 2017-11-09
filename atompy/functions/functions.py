@@ -39,7 +39,6 @@ def transition_strength(ground_state, excited_state, tensor, flip_q=False, decou
 
     flip_q : Boolean, Optional
         Whether the output's sign should be flipped based on the value of tensor.q.
-        Useful when you're working from the daggered result.
 
     decouple_j : Boolean, Optional
         Whether to decouple the resulting <F||tensor||F'> to <J||tensor||J'>. 
@@ -135,6 +134,8 @@ def transition_strength(ground_state, excited_state, tensor, flip_q=False, decou
 
     k = tensor.k
     q = tensor.q
+    if flip_q:
+        q = -q
 
     # label the gamma symbol
     label_g = ground_state.label
@@ -152,13 +153,13 @@ def transition_strength(ground_state, excited_state, tensor, flip_q=False, decou
         w0 = sympify('omega_%s%s' %(label_g, label_e))
         # decouple to <J||..||J'>
         result *= (-1)**(fe+jg+1+I) * sqrt((2*fe+1)*(2*jg+1))
-        result *= wigner_6j(jg, je, 1, fe, fg, I)
+        result *= wigner_6j(jg, je, k, fe, fg, I)
         dbl_bar = DoubleBar(jg, je, w0, gamma)
     
     if decouple_l:
         # decouple to <L||..||L'>
         result *= (-1)**(je+lg+1+sg) * sqrt((2*je+1)*(2*lg+1))
-        result *= wigner_6j(lg, le, 1, je, jg, sg)
+        result *= wigner_6j(lg, le, k, je, jg, sg)
         dbl_bar = DoubleBar(lg, le, w0, gamma)
     
     out += result * dbl_bar
