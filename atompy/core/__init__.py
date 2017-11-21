@@ -1,7 +1,7 @@
 """Init"""
 
 # import sympy at the core level
-from sympy import sympify, symbols, Eq, I, Function
+from sympy import sympify, symbols, Eq, I, Function, Symbol
 from sympy.core import Add, Mul, S
 from sympy.printing import *
 from sympy.concrete import *
@@ -11,7 +11,7 @@ from sympy.physics.quantum import *
 from sympy.physics.quantum.cg import *
 from sympy.physics.quantum.spin import *
 from sympy.physics.quantum.hilbert import *
-c, e0, u0 = symbols('c, e0, u0')
+c, e0, u0 = symbols('c, e0, u0', positive=True, real=True)
 
 # import self
 from .atomicstate import *

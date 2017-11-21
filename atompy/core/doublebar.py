@@ -38,8 +38,9 @@ class DoubleBar(Function):
 
     @classmethod
     def eval(cls, jg, je, w0, gamma):
-        if gamma.is_number:
-            out = ((3 * pi * e0 * hbar * c**3) / (w0**3)) * ((2*je + 1) / (2*jg + 1)) * gamma
-            out = sqrt(out)
-            return out
+        out = ((3 * pi * e0 * hbar * c**3) / (w0**3)) * ((2*je + 1) / (2*jg + 1)) * gamma
+        out = sqrt(out)
+        return out
 
+    def _eval_is_real(self):
+        return True

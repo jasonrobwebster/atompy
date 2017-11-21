@@ -154,6 +154,11 @@ class Atom():
         """The hamiltonian for the atom."""
         return self._hamiltonian
 
+    @property
+    def rho_functions(self):
+        """A list of all the probability values as a function of time."""
+        return self._rho_funcs
+
     #-------------------------------------------------------------------------
     # Class Methods
     #-------------------------------------------------------------------------
@@ -186,6 +191,7 @@ class Atom():
         self._rho = 0
         self._hamiltonian = 0
         self._rho_list = [] # a list tuples describing the added rho functions (rho_12, |1>, |2>)
+        self._rho_funcs = []
 
     def __repr__(self):
         if self.name != '':
@@ -402,6 +408,7 @@ class Atom():
         rho_label = Function(rho_label)
         self._rho += rho_label(t) * level_op 
         self._rho_list.append((rho_label(t), level_ket, level_ket))
+        self._rho_funcs.append(rho_label(t))
         for state in self._levels_list:
             # add upper part
             old_ket = state.ket
@@ -411,12 +418,14 @@ class Atom():
             rho_op = level_ket * old_ket.dual
             self._rho += rho_label(t) * rho_op
             self._rho_list.append((rho_label(t), level_ket, old_ket))
+            self._rho_funcs.append(rho_label(t))
             # add lower part
             rho_label = 'rho_%s%s' %(old_label, label)
             rho_label = Function(rho_label)
             rho_op = old_ket * level_ket.dual
             self._rho += rho_label(t) * rho_op
             self._rho_list.append((rho_label(t), old_ket, level_ket))
+            self._rho_funcs.append(rho_label(t))
 
         # add to the level
         new_level = AtomicState(E_level, level_ket, label, atomic_label)
@@ -570,10 +579,6 @@ class Atom():
         .. [2] Schmiegelow, C.T. and Schmidt-Kaler, F., 2012. 
             Light with orbital angular momentum interacting with trapped ions.
         """
-        
-        # TODO: Build a more robust way to build the interaction hamiltonian
-        # Specifically, follow the paper [2] by Schimdt-Kaler.
-        # For now just interact directly with one spherical tensor.
 
         # TODO: Add support for d, E as vectors.
 
@@ -647,7 +652,7 @@ class Atom():
 
         steady : Boolean, Optional
             Whether the returned master equations should be the steady state master equations.
-            Defaults to False.Abs
+            Defaults to False.
 
         References
         ==========
@@ -679,6 +684,19 @@ class Atom():
 
         # return a system of equations
         sys = []
+
+        # get the diagonal trace = 1
+        trace = 0
+        for ground_state in self._levels_list:
+            for excited_state in self._levels_list:
+                g_label = ground_state.label
+                e_label = excited_state.label
+                if g_label == e_label:
+                    rho = Function('rho_%s%s' %(g_label, e_label))
+                    trace += rho(t)
+        sys.append(Eq(1, trace))
+
+        # get the time evolution
         for ground_state in self._levels_list:
             for excited_state in self._levels_list:
                 g_label = ground_state.label
@@ -691,6 +709,8 @@ class Atom():
                     sys.append(Eq(0, rhs))
                 else:
                     sys.append(Eq(rho(t).diff(t), rhs))
+
+        
         
         return sys
 

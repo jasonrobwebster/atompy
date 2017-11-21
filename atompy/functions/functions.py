@@ -2,7 +2,7 @@
 
 from __future__ import print_function
 
-from atompy.core import (AtomicState, DoubleBar, SphericalTensor, Dagger,
+from atompy.core import (AtomicState, DoubleBar, SphericalTensor, Dagger, Symbol,
                          OuterProduct, Operator, Add, Mul, clebsch_gordan, sqrt,
                          wigner_6j, sympify, S, qapply, hbar)
 
@@ -45,7 +45,7 @@ def transition_strength(ground_state, excited_state, tensor, flip_q=False, decou
         Defaults to True.
 
     decouple_j : Boolean, Optional
-        Whether to decouple the resulting <F||tensor||F'> to <L||tensor||L'>. 
+        Whether to decouple the resulting <F||tensor||F'> to <L||tensor||L'>.
         Defaults to True.
 
     Examples
@@ -141,7 +141,7 @@ def transition_strength(ground_state, excited_state, tensor, flip_q=False, decou
     label_g = ground_state.label
     label_e = excited_state.label
     gamma = 'Gamma_%s%s' %(label_g, label_e)
-    gamma = sympify(gamma)
+    gamma = Symbol(gamma, postive=True, real=True)
     w0 = (e_e - e_g)/hbar
 
     # Give the result
@@ -150,7 +150,7 @@ def transition_strength(ground_state, excited_state, tensor, flip_q=False, decou
     dbl_bar = DoubleBar(fg, fe, w0, gamma)
     
     if decouple_j or decouple_l:
-        w0 = sympify('omega_%s%s' %(label_g, label_e))
+        w0 = Symbol('omega_%s%s' %(label_g, label_e), positive=True, real=True)
         # decouple to <J||..||J'>
         result *= (-1)**(fe+jg+1+I) * sqrt((2*fe+1)*(2*jg+1))
         result *= wigner_6j(jg, je, k, fe, fg, I)
