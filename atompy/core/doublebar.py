@@ -1,6 +1,6 @@
 """Double Bar matrix elements."""
 
-from . import Function, hbar, c, e0, pi, sqrt
+from . import Function, hbar, c, e0, pi, sqrt, sympify, S
 
 class DoubleBar(Function):
     """DoubleBar matrix element.
@@ -38,9 +38,20 @@ class DoubleBar(Function):
 
     @classmethod
     def eval(cls, jg, je, w0, gamma):
-        out = ((3 * pi * e0 * hbar * c**3) / (w0**3)) * ((2*je + 1) / (2*jg + 1)) * gamma
-        out = sqrt(out)
-        return out
+        w0 = sympify(w0)
+        gamma = sympify(gamma)
+
+        if gamma.is_zero:
+            return S.Zero
+
+        if w0.is_zero:
+            return S.Zero
+
+        if gamma.is_number and w0.is_number:
+            out = ((3 * pi * e0 * hbar * c**3) / (w0**3)) * ((2*je + 1) / (2*jg + 1)) * gamma
+            out = sqrt(out)
+            out = out.subs(subs_list)
+            return out
 
     def _eval_is_real(self):
         return True
