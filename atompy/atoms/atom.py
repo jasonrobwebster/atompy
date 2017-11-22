@@ -654,6 +654,9 @@ class Atom():
             Whether the returned master equations should be the steady state master equations.
             Defaults to False.
 
+        subs_list : List, Optional
+            A list of tuples specifying values to be subsituted.
+
         References
         ==========
 
@@ -661,6 +664,7 @@ class Atom():
         http://atomoptics-nas.uoregon.edu/~dsteck/teaching/quantum-optics/quantum-optics-notes.pdf
         """
 
+        subs_list = kwargs.get('subs_list', [])
         
         # TODO: Make dipole a vector that can dot into the light_field
 
@@ -680,7 +684,9 @@ class Atom():
                     g_label = ground_state.label
                     e_label = excited_state.label
                     gamma = sympify('Gamma_%s%s' %(g_label, e_label))
-                    result += gamma * lindblad_superop(lower_op, self.rho)
+                    gamma = gamma.subs(subs_list)
+                    if gamma != 0:
+                        result += gamma * lindblad_superop(lower_op, self.rho)
 
         # return a system of equations
         sys = []
@@ -705,17 +711,16 @@ class Atom():
                 #take <g|result|e> to get d/dt rho_ge
                 rhs = qapply(result * excited_state.ket)
                 rhs = qapply(ground_state.ket.dual * rhs)
+                rhs = rhs.subs(subs_list)
                 if steady:
                     sys.append(Eq(0, rhs))
                 else:
                     sys.append(Eq(rho(t).diff(t), rhs))
 
-        
-        
         return sys
 
 
     # TODO: Add method to calculate spin orbit coupling
     # TODO: Add support for adding all j and m_j sublevels for a given L and S
     # TODO: Add a method to calculate hyperfine splitting
-    # TODO: Add a way to decompose an arbitraryily defined function into spherical tensor components.
+    # TODO: Add a way to decompose an arbitrarily defined function into spherical tensor components.

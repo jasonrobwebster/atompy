@@ -17,7 +17,7 @@ __all__ = [
 
 # TODO: Extend these to functions to classes
 
-def transition_strength(ground_state, excited_state, tensor, flip_q=False, decouple_j=True, decouple_l=True):
+def transition_strength(ground_state, excited_state, tensor, flip_q=False, decouple_j=True, decouple_l=True, **kwargs):
     """Calculate the transition strengths between two atomic states [1], given by
     <ground_state|tensor|excited_state>.
 
@@ -88,6 +88,8 @@ def transition_strength(ground_state, excited_state, tensor, flip_q=False, decou
     # janky way of accounting for additions and multiplications
     # TODO: Fix the jankiness, make it more sympy like.
     out = 0
+
+    subs_list = kwargs.get('subs_list', [])
 
     if isinstance(tensor, Add):
         for arg in tensor.args:
@@ -163,6 +165,7 @@ def transition_strength(ground_state, excited_state, tensor, flip_q=False, decou
         dbl_bar = DoubleBar(lg, le, w0, gamma)
     
     out += result * dbl_bar
+    out.subs(subs_list)
 
     return out
 
