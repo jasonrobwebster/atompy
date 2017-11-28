@@ -6,7 +6,7 @@ from sympy.core.compatibility import range
 from atompy.core import (sympify, symbols, Abs, sqrt, S, clebsch_gordan,
                          wigner_6j, m_values, hbar, I, qapply, couple_tensor, 
                          AtomicState, DoubleBar, SphericalTensor, Function, 
-                         Sum, Add, Mul, CG, Dummy, Eq)
+                         Sum, Add, Mul, CG, Dummy, Eq, pprint)
 from atompy.multilevel import AtomicJzKet
 from atompy.functions import weak_zeeman, transition_strength, operator_commutator, lindblad_superop
 
@@ -614,7 +614,7 @@ class Atom():
             E_g = ground_state.E
             for excited_state in self._levels_list:
                 E_e = excited_state.E
-                if E_e > E_g:
+                if E_e - E_g > 0:
                     g_ket = ground_state.ket
                     e_ket = excited_state.ket
                     q = g_ket.m - e_ket.m
@@ -679,7 +679,7 @@ class Atom():
             E_g = ground_state.E
             for excited_state in self._levels_list:
                 E_e = excited_state.E
-                if E_e > E_g:
+                if E_e - E_g > 0:
                     lower_op = ground_state.ket * excited_state.ket.dual
                     g_label = ground_state.label
                     e_label = excited_state.label

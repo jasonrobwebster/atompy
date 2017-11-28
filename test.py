@@ -4,7 +4,7 @@ from sympy import dsolve, solve
 rb = ap.Atom(name='Rb', spin=0)
 
 g = rb.add_level(
-    energy = 0,
+    energy = 0 * ap.eV,
     n = 5,
     s = ap.S(1)/2,
     l = 'S',
@@ -14,7 +14,7 @@ g = rb.add_level(
 )
 
 e = rb.add_level(
-    energy = 1,
+    energy = 1 * ap.eV,
     n = 5,
     s = ap.S(1)/2,
     l = 'P',
@@ -23,13 +23,13 @@ e = rb.add_level(
     label = 'P'
 )
 
-e = rb.add_m_sublevels(
-    energy = 2,
-    n = 5,
-    s = ap.S(1)/2,
-    l = 'D',
-    j = ap.S(5)/2
-)
+#e = rb.add_m_sublevels(
+#    energy = 2 *ap.eV,
+#    n = 5,
+#    s = ap.S(1)/2,
+#    l = 'D',
+#    j = ap.S(5)/2
+#)
 
 ap.init_printing()
 #ap.pprint(rb.rho)
@@ -37,14 +37,15 @@ ap.init_printing()
 print(rb)
 
 subs_list = [
-    *[('Gamma_S%d' %(i+1), 0) for i in range(5)],
-    ('c', 1), ('e0', 1), ('hbar', 1)
+    *[('Gamma_S%d' %(i+1), 0) for i in range(5)]
 ]
 print(subs_list)
 
-master_eq = rb.master_equation(0, ap.SphericalTensor(0,0), steady=True, subs_list=subs_list)
+master_eq = rb.master_equation(0, ap.SphericalTensor(0,0), steady=True)
 for i in master_eq:
     ap.pprint(i)
+
+#ap.pprint(ap.operator_commutator(rb.hamiltonian, rb.rho))
 
 #ap.pprint(solve(master_eq, rb.rho_functions))
 

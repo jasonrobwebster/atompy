@@ -4,7 +4,7 @@ from __future__ import print_function
 
 from atompy.core import (AtomicState, DoubleBar, SphericalTensor, Dagger, Symbol,
                          OuterProduct, Operator, Add, Mul, clebsch_gordan, sqrt,
-                         wigner_6j, sympify, S, qapply, hbar)
+                         wigner_6j, sympify, S, qapply, hbar, u0)
 
 
 __all__ = [
@@ -143,7 +143,7 @@ def transition_strength(ground_state, excited_state, tensor, flip_q=False, decou
     label_g = ground_state.label
     label_e = excited_state.label
     gamma = 'Gamma_%s%s' %(label_g, label_e)
-    gamma = Symbol(gamma, postive=True, real=True)
+    gamma = Symbol(gamma)
     w0 = (e_e - e_g)/hbar
 
     # Give the result
@@ -152,7 +152,7 @@ def transition_strength(ground_state, excited_state, tensor, flip_q=False, decou
     dbl_bar = DoubleBar(fg, fe, w0, gamma)
     
     if decouple_j or decouple_l:
-        w0 = Symbol('omega_%s%s' %(label_g, label_e), positive=True, real=True)
+        w0 = Symbol('omega_%s%s' %(label_g, label_e))
         # decouple to <J||..||J'>
         result *= (-1)**(fe+jg+1+I) * sqrt((2*fe+1)*(2*jg+1))
         result *= wigner_6j(jg, je, k, fe, fg, I)
@@ -165,7 +165,6 @@ def transition_strength(ground_state, excited_state, tensor, flip_q=False, decou
         dbl_bar = DoubleBar(lg, le, w0, gamma)
     
     out += result * dbl_bar
-    out.subs(subs_list)
 
     return out
 
@@ -213,7 +212,7 @@ def weak_zeeman(ket, b, **kwargs):
     b = sympify(b)
     g_l = sympify(kwargs.get('g_l', 1))
     g_s = sympify(kwargs.get('g_s', 2.00231930436182))
-    mu_b = sympify(kwargs.get('mu_b', 927.4009994 * S(10)**(-26)))
+    mu_b = u0
     g_i = sympify(kwargs.get('g_i', 0))
     
     s = ket.s
@@ -270,28 +269,25 @@ def lindblad_superop(operator, rho):
     # May be able to create a class for rho that extends a hermitian op
     # Which will then have the proper functionality applied to it
     out = 0
-    if isinstance(rho, OuterProduct):
+    if isinstance(rho, Add):
+        for arg in rho.args:
+            out += lindblad_superop(operator, arg)
+    elif isinstance(rho, Mul):
+        args = rho.args
+        try:
+            result = Mul(*args[1:]) * lindblad_superop(operator, args[0])
+        except ValueError:
+            result = args[0] * lindblad_superop(operator, Mul(*args[1:]))
+        out += result
+    elif not isinstance(rho, Operator):
+        raise ValueError('rho is not an operator, got %s' %rho)
+    elif isinstance(rho, OuterProduct):
         out += qapply(op * rho * op_dagger.ket*op_dagger.bra)
         out -= S.One/2 * qapply(op_dagger*op*rho.ket*rho.bra + rho * op_dagger * op.ket*op.bra)
-    elif isinstance(rho, (Add, Mul)):
-        if isinstance(rho, Mul):
-            coeff, var = rho.args
-            if isinstance(coeff, OuterProduct):
-                out += var * lindblad_superop(op, coeff)
-            elif isinstance(var, OuterProduct):
-                out += coeff * lindblad_superop(op, var)
-            else:
-                raise ValueError('Given mul has too many arguments, got %s' % rho)
-        elif isinstance(rho, Add):
-            for arg in rho.args:
-                # these args should now be Muls, i.e.
-                # rho = rho_00|0><0| + rho_01|0><1| + ...
-                out += lindblad_superop(op, arg)
     else:
-        raise ValueError(
+        raise TypeError(
             'Rho should be of type Add, Mul or OuterProduct, got type %s' % type(rho).__name__
         )
-
     return out
 
 def operator_qapply(a,b):
@@ -310,20 +306,18 @@ def operator_qapply(a,b):
         for arg in b.args:
             out += operator_qapply(a, arg)
     elif isinstance(b, Mul):
-        result = 1
         args = b.args
         try:
-            result *= Mul(*args[1:]) * operator_qapply(a, args[0])
+            result = Mul(*args[1:]) * operator_qapply(a, args[0])
         except ValueError:
-            result *= args[0] * operator_qapply(a, Mul(*args[1:]))
+            result = args[0] * operator_qapply(a, Mul(*args[1:]))
         out += result
     elif not isinstance(b, Operator):
         raise ValueError('b is not an operator, got %s' %b)
-
-    if not isinstance(b, OuterProduct):
+    elif not isinstance(b, OuterProduct):
         return qapply(a * b)
-
-    out += qapply(a* b.ket * b.bra)
+    else:
+        out += qapply(a* b.ket * b.bra)
 
     return out
 
